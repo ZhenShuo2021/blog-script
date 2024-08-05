@@ -1,0 +1,35 @@
+services:
+ plex:
+   image: plexinc/pms-docker:latest                  # latest 安裝最新的版本
+   hostname: PlexServer                              # 自定義主機名稱
+   restart: always                                   # 設置重啟策略
+   volumes:
+     - "./config:/config"          # Plex 配置文件目錄
+       #- "'數據目錄'/plex/transcode:/transcode"    # Plex 轉碼文件目錄
+     - "./data:/data"              # Plex 數據文件目錄
+     - "/home/user/vider:/video"
+   ports:
+     - 32400:32400/tcp                               # Plex 網頁訪問端口，例如要改為通過 8080 端口訪問，就修改為8080:32400
+     - 3005:3005/tcp                                 # Plex Companion
+     - 8324:8324/tcp                                 # controlling Plex for Roku via Plex Companion
+     - 32469:32469/tcp                               # access to the Plex DLNA Server
+     - 32468:1900/udp                                # access to the Plex DLNA Server
+     - 32410:32410/udp                               # current GDM network discovery
+     - 32412:32412/udp                               # current GDM network discovery
+     - 32413:32413/udp                               # current GDM network discovery
+     - 32414:32414/udp                               # current GDM network discovery
+   # devices:                                        # Share hardware devices with FFmpeg (optional)
+     #  - "/dev/dri:/dev/dri"                        # Intel QSV
+     #  - "/dev/nvidia0:/dev/nvidia0"                # Nvidia CUDA
+     #  - "/dev/nvidiactl:/dev/nvidiactl"
+     #  - "/dev/nvidia-modeset:/dev/nvidia-modeset"
+     #  - "/dev/nvidia-nvswitchctl:/dev/nvidia-nvswitchctl"
+     #  - "/dev/nvidia-uvm:/dev/nvidia-uvm"
+     #  - "/dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools"
+     #  - "/dev/video11:/dev/video11"                # Raspberry V4L2
+   environment:
+     TZ: Asia/Taipei                               # 容器內部時區
+     PLEX_UID: 0                                     # 在容器內創建的用戶 ID（不懂勿改）
+     PLEX_GID: 0                                     # 在容器內創建的用戶組 ID（不懂勿改）
+     PLEX_CLAIM: claim-hz2o-_1B6VxsQo8xzBfi   # 真實伺服器的聲明令牌，您可以通過訪問 https://www.plex.tv/claim 獲取聲明令牌以將您的伺服器登錄到您的 Plex 帳戶
+     ADVERTISE_IP: 192.168.50.97:32400/              # 填寫外部訪問的固定 IP 或域名，沒有的話可以刪除此行

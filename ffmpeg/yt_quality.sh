@@ -1,0 +1,1 @@
+ffmpeg -i <INPUT> -c:v libx264 -preset slow -crf 18 -vf scale=out_color_matrix=bt709 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -c:a aac -ar 48000 -ac 2 -b:a 320k -profile:v high -level 4.0 -bf 2 -coder 1 -pix_fmt yuv420p -b:v 10M -threads 4 -cpu-used 0 -r 30 -g 15 -movflags +faststart <OUTPUT>

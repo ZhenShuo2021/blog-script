@@ -1,0 +1,12 @@
+services:
+  lanraragi:
+    image: difegue/lanraragi:latest
+    container_name: lanraragi
+    volumes:
+      - /home/user/photo/lanraragi:/home/koyomi/lanraragi/content
+      - /home/user/docker/lanraragi/database:/home/koyomi/lanraragi/database
+      - /home/user/docker/lanraragi/thumb:/home/koyomi/lanraragi/thumb
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - 2279:3000
+    restart: always
