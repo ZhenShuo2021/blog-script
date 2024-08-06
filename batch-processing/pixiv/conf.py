@@ -1,6 +1,6 @@
 # 下載資料夾路徑
 BASE_PATHS = {
-    "local": "/Users/leo/Pictures/downloads拷貝/",
+    "local": "/Users/leo/Pictures/downloads/",
     "remote": "/Volumes/photo/download/photoprism/"
 }
 

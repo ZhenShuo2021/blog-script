@@ -21,11 +21,7 @@ categorize_artist(local.other)
 file_count = count_file_dirs(local)
 
 print("開始同步檔案...")
-sync_folders(local.bluearchive, remote.bluearchive)
-sync_folders(local.idolmaster, remote.idolmaster)
-sync_folders(local.other, remote.other)
-sync_folders(local.marin, remote.marin)
-sync_folders(local.genshin, remote.genshin)
+[sync_folders(getattr(local, key), getattr(remote, key)) for key in vars(local)]   # walk through keys using list comprehension
 merge_log(os.path.join(script_dir, "gen"))
 
 print("開始尋找遺失作品...")
