@@ -9,7 +9,7 @@ from collections import Counter
 import matplotlib.pyplot as plt
 from conf import BASE_PATHS
 
-from tool import color_text
+from tool import color_text, is_system_file
 
 # Parameters
 # working_dir: 統計標籤的工作目錄
@@ -70,12 +70,9 @@ def extract_tags(filename):
         return tags
     return []
 
-def process_files(directory, recursive=True, output_file='tags'):
+def count_tags(directory, recursive=True, output_file='tags'):
     all_tags = []
     total_files = 0
-    
-    def is_system_file(filename):
-        return filename in ['.DS_Store', 'Thumbs.db']
 
     if recursive:
         for root, _, files in os.walk(directory):
@@ -112,10 +109,10 @@ def process_files(directory, recursive=True, output_file='tags'):
 #         print(f"Error: {args.directory} is not a valid directory")
 #         sys.exit(1)
     
-#     process_files()
+#     count_tags()
 #     print(f"Tag statistics have been written to tags.txt")
 
 if __name__ == "__main__":
-    process_files(work_dir, output_file=file_name)
+    count_tags(work_dir, output_file=file_name)
     tag_counts = read_tag_counts(file_name)
     plot_pie_chart(tag_counts, 15, skip=2) # skip since the top tags are useless

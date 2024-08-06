@@ -93,7 +93,7 @@ def export_txt(filename, found_posts, not_found_posts, take_down_posts):
             file.write(result + '\n')
         
 
-def search_missed_urls_main(base_url, html_file):
+def retrieve_artwork_main(base_url, html_file):
     html_content = read_html("./gen/" + html_file + ".html")
     urls = extract_urls(html_content)
     # print(f"遺失作品數量：{len(urls)}")
@@ -103,4 +103,4 @@ def search_missed_urls_main(base_url, html_file):
     print(color_text(f"結果已輸出到 {os.getcwd()}/gen/{html_file}_retrieve.txt", color='black'))
 
 if __name__ == "__main__":
-    search_missed_urls_main(base_url, html_file)
+    retrieve_artwork_main(base_url, html_file)

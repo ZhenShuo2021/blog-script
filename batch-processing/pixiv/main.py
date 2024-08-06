@@ -1,9 +1,9 @@
 import os
-from retrieve_artwork import print_progress, search_missed_urls_main
+from retrieve_artwork import retrieve_artwork_main
 from retrieve_artwork import base_url, html_file
 from post_process import categorize_character, move_to_parent, categorize_artist, sync_folders, merge_log
 from post_process import bluearchive_tags, idolmaster_tags
-from tag_stats import process_files, read_tag_counts, plot_pie_chart
+from tag_stats import count_tags, read_tag_counts, plot_pie_chart
 from tag_stats import file_name
 from conf import BASE_PATHS, idolmaster_path_child
 from tool import local, remote, count_file_dirs
@@ -29,10 +29,10 @@ sync_folders(local.genshin, remote.genshin)
 merge_log(os.path.join(script_dir, "gen"))
 
 print("開始尋找遺失作品...")
-search_missed_urls_main(base_url, html_file)
+retrieve_artwork_main(base_url, html_file)
 
 print("開始統計標籤...")
-process_files(BASE_PATHS["remote"], output_file=file_name)
+count_tags(BASE_PATHS["remote"], output_file=file_name)
 tag_counts = read_tag_counts(file_name)
 plot_pie_chart(tag_counts, top_n=15, skip=2, output_file=file_name) # skip since the top tags are useless
 

@@ -1,9 +1,8 @@
 # 幫檔案自動分類到資料夾
 import os
-import shutil
 import sys
 import subprocess
-from tool import is_system_file, is_english, is_japanese, color_text, local, remote
+from tool import is_system_file, is_english, is_japanese, color_text, local, remote, safe_mv
 from conf import bluearchive_tags, idolmaster_tags, idolmaster_path_child
 from datetime import datetime
 
@@ -13,7 +12,7 @@ from datetime import datetime
 # Functions
 def sync_folders(source, destination):
     if not os.path.exists(source):
-        print(color_text(f"警告：來源位置 '{source}' 不存在，程式結束", "red"))
+        print(color_text(f"📢訊息：這次❌沒有下載📥\033[4m{os.path.basename(source)}\033[0m🗿", "black"))
         os.makedirs(source)
         # return
 
@@ -24,7 +23,6 @@ def sync_folders(source, destination):
 
     os.makedirs(os.path.join(os.path.join(os.getcwd(), 'gen')), exist_ok=True)
     log_name = os.path.join(os.getcwd(), 'gen', f'{os.path.basename(source)}.log')
-    # print(f"開始同步到{destination}...")
     command = [
         'rsync', '-aq', '--ignore-existing', '--remove-source-files', '--progress', 
         f'--log-file={log_name}', f'{source}/', f'{destination}/'
@@ -59,7 +57,7 @@ def merge_log(destination):
 
 def move_to_parent(parent_folder, child_folders=None, only_files=False):
     """
-    新增父資料夾並把子資料夾移進父資料夾
+    建立 parent_folder 並把 child_folders 移進 parent_folder
     only_files [true] 只移動檔案到父資料夾 
                [false] 只移動資料夾名單到父資料夾
     """
@@ -73,13 +71,13 @@ def move_to_parent(parent_folder, child_folders=None, only_files=False):
         for folder_name in child_folders:
             folder_path = os.path.join(base_folder, folder_name)
             if os.path.isdir(folder_path):
-                shutil.move(folder_path, os.path.join(parent_folder, folder_name))
+                safe_mv(folder_path, os.path.join(parent_folder, folder_name))
     else:
         base_folder = os.path.dirname(parent_folder)
         for file_name in os.listdir(base_folder):
             file_path = os.path.join(base_folder, file_name)
-            if os.path.isfile(file_path):
-                shutil.move(file_path, os.path.join(parent_folder, file_name))
+            if os.path.isfile(file_path) and not is_system_file(os.path.basename(file_path)):
+                safe_mv(file_path, os.path.join(parent_folder, file_name))
 
 def categorize_artist(path):
     if not os.path.isdir(path):
@@ -97,15 +95,19 @@ def categorize_artist(path):
     for filename in os.listdir(path):
         if os.path.isfile(os.path.join(path, filename)) and not is_system_file(filename):
             first_char = filename[0]
-
+            
             if is_english(first_char):
-                shutil.move(os.path.join(path, filename), os.path.join(english_folder, filename))
+                safe_mv(os.path.join(path, filename), os.path.join(english_folder, filename))
             elif is_japanese(first_char):
-                shutil.move(os.path.join(path, filename), os.path.join(japanese_folder, filename))
+                safe_mv(os.path.join(path, filename), os.path.join(japanese_folder, filename))
             else:
-                shutil.move(os.path.join(path, filename), os.path.join(other_folder, filename))
+                safe_mv(os.path.join(path, filename), os.path.join(other_folder, filename))
     
 def categorize_character(base_path, tags, search_depth):
+    if not os.path.isdir(base_path):
+        print(f"The path {base_path} is not a directory.")
+        return
+    
     other_folder = os.path.join(base_path, tags["others"])
     if not os.path.exists(other_folder):
         os.makedirs(other_folder)
@@ -120,11 +122,11 @@ def categorize_character(base_path, tags, search_depth):
             continue
 
         for file in files:
-            file_name, file_extension = os.path.splitext(file)
-            if is_system_file(file_name):
+            if is_system_file(file):
                 continue
+            
+            file_name, file_extension = os.path.splitext(file)
             tags_in_file = file_name.split(",")
-
             if len(tags_in_file) > 0:
                 tags_in_file[0] = tags_in_file[0].split("_")[-1]
 
@@ -137,14 +139,14 @@ def categorize_character(base_path, tags, search_depth):
                     
                     src_file = os.path.join(root, file)
                     dst_file = os.path.join(target_folder, file)
-                    shutil.move(src_file, dst_file)
+                    safe_mv(src_file, dst_file)
                     moved = True
                     break
 
             if not moved:
                 src_file = os.path.join(root, file)
                 dst_file = os.path.join(other_folder, file)
-                shutil.move(src_file, dst_file)
+                safe_mv(src_file, dst_file)
 
 if __name__ == "__main__":
     print("開始分類檔案...")
