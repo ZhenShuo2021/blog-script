@@ -1,6 +1,7 @@
 # Custom
 batch-processing/pixiv/gen/*
 .DS_Store
+activate
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
