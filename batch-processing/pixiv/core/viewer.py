@@ -3,8 +3,6 @@
 
 import os
 import re
-import sys
-import argparse
 from collections import Counter
 import matplotlib.pyplot as plt
 from conf import BASE_PATHS
@@ -97,20 +95,6 @@ def count_tags(directory, recursive=True, output_file='tags'):
             f.write(f"{tag}: {count}\n")
 
     print(f"標籤已輸出到{os.getcwd()}/gen/{output_file}.txt")
-
-# def tag_stats_main():
-#     parser = argparse.ArgumentParser(description="Extract tags from filenames and generate statistics.")
-#     parser.add_argument("directory", help="Directory to process")
-#     parser.add_argument("-r", "--recursive", action="store_true", help="Search subdirectories recursively")
-    
-#     args = parser.parse_args()
-    
-#     if not os.path.isdir(args.directory):
-#         print(f"Error: {args.directory} is not a valid directory")
-#         sys.exit(1)
-    
-#     count_tags()
-#     print(f"Tag statistics have been written to tags.txt")
 
 if __name__ == "__main__":
     count_tags(work_dir, output_file=file_name)

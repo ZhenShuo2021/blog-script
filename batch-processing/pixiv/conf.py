@@ -1,86 +1,110 @@
-# 下載資料夾路徑
-BASE_PATHS = {
-    "local": "/Users/leo/Pictures/downloads拷貝/",
-    "remote": "/Volumes/photo/download/photoprism/"
-}
+import logging
+from enum import Enum
 
-# 分類路徑，分別是本地/遠端(NAS)
-# keys: (local name, remote name)
-CATEGORIES = {
-    "bluearchive": ("ブルーアーカイブ", "bluearchive"),
-    "idolmaster": ("idolmaster", "idolmaster"),
-    "other": ("others", "others/雜圖"),
-    "marin": ("喜多川海夢", "others/喜多川海夢"),
-    "genshin": ("原神", "genshin")
-}
+class LogLevel(Enum):
+    DEBUG = logging.DEBUG
+    INFO = logging.INFO
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
+    CRITICAL = logging.CRITICAL
 
-# idolmaster資料夾名稱
-idolmaster_path_child = ["アイドルマスターシャイニーカラーズ", 
-                         "アイドルマスターシンデレラガールズ", 
-                         "アイドルマスター", 
-                         "学園アイドルマスター"]
+class CustomFormatter(logging.Formatter):
+    # 定義顏色
+    GREEN = "\033[32m"      # 淺綠色
+    YELLOW = "\033[33;20m"
+    RED = "\033[31;20m"
+    BOLD_RED = "\033[31;1m"
+    GREY = "\033[37m"       # 灰色
+    WHITE = "\033[97m"      # 白色
+    RESET = "\033[0m"
 
-# 定義標籤對應的資料夾名稱
-bluearchive_tags = {
-    "調月リオ": "調月リオ",
-    "调月莉音": "調月リオ",
-    "早瀬ユウカ": "早瀬ユウカ",
-    "一之瀬アスナ": "一之瀬アスナ",
-    "一之瀨亞絲娜(兔女郎)": "一之瀬アスナ",
-    "亞絲娜": "一之瀬アスナ",
-    "飛鳥馬トキ": "飛鳥馬トキ",
-    "飛鳥馬時": "飛鳥馬トキ",
-    "角楯カリン": "角楯カリン",
-    "仲正一花": "仲正一花",
-    "七神リン": "七神リン",
-    "羽川ハスミ": "羽川ハスミ",
-    "生鹽諾雅": "生鹽諾雅",
-    "陸八魔アル": "陸八魔アル",
-    "錠前サオリ": "錠前サオリ",
-    "天雨アコ": "天雨アコ",
-    "十六夜ノノミ": "十六夜ノノミ", 
-    "砂狼シロコ": "砂狼シロコ",
-    "others": "其他角色"    # 上述標籤以外的檔案放進此資料夾中
-}
+    LOG_FORMAT = "[%(asctime)s][%(levelname)s][%(status)s] - %(message)s"
+    DATE_FORMAT = "%H:%M:%S"
 
-idolmaster_tags = {
-    "黛冬優子": "黛冬優子",
-    "桑山千雪": "桑山千雪",
-    "市川雛菜": "市川雛菜",
-    "樋口円香": "樋口円香",
-    "七草羽月": "七草羽月",
-    "七草にちか": "七草日花",
-    "和泉愛依": "和泉愛依",
-    "白瀨咲耶": "白瀨咲耶",
-    "浅倉透": "浅倉透",
-    "有栖川夏葉": "有栖川夏葉",
-    "月岡戀鍾": "月岡戀鍾",
-    "大崎甘奈": "大崎甘奈",
-    "大崎甜花": "大崎甘奈",
-    "櫻木真乃": "櫻木真乃",
-    "西城樹里": "西城樹里",
-    "風野灯織": "風野灯織",
-    "園田智代子": "園田智代子",
-    "八宮めぐる": "八宮めぐる",
+    def format(self, record):
+        # 設定時間顏色為淺綠色
+        asctime = self.GREEN + self.formatTime(record, self.DATE_FORMAT) + self.RESET
 
-    "姫崎莉波": "姫崎莉波",
+        # 根據日誌級別動態設置 levelname 的顏色並轉換為小寫
+        levelname = record.levelname.lower()
+        if record.levelno == logging.DEBUG:
+            levelname = self.GREY + levelname + self.RESET
+        elif record.levelno == logging.INFO:
+            levelname = self.WHITE + levelname + self.RESET
+        elif record.levelno == logging.WARNING:
+            levelname = self.YELLOW + levelname + self.RESET
+        elif record.levelno == logging.ERROR:
+            levelname = self.RED + levelname + self.RESET
+        elif record.levelno == logging.CRITICAL:
+            levelname = self.BOLD_RED + levelname + self.RESET
 
-    "本田未央": "本田未央",
-    "北条加蓮": "北条加蓮",
-    "鷺澤文香": "鷺澤文香",
-    "城崎美嘉": "城崎美嘉",
-    "新田美波": "新田美波",
-    "三船美優": "三船美優",
-    "千川ちひろ": "千川ちひろ",
-    "速水奏": "速水奏",
-    "高桓楓": "高桓楓",
-    "島村卯月": "島村卯月",
-    "澀谷凜": "澀谷凜",
-    "others": "其他角色"    # 上述標籤以外的檔案放進此資料夾中
-}
+        # 確保訊息顏色始終為白色
+        message = self.WHITE + record.getMessage() + self.RESET
 
-# 定義日文平假名和片假名範圍
-HIRAGANA_START = '\u3040'
-HIRAGANA_END = '\u309f'
-KATAKANA_START = '\u30a0'
-KATAKANA_END = '\u30ff'
+        # 使用自定義格式組合為日誌輸出
+        log_format = f"[{asctime}][{levelname}][{record.status}] {message}"
+        return log_format
+
+class PlainFormatter(logging.Formatter):
+    LOG_FORMAT = "[%(asctime)s][%(levelname)s][%(status)s] - %(message)s"
+    DATE_FORMAT = "%H:%M:%S"
+
+    def format(self, record):
+        # 將 levelname 轉為小寫
+        levelname = record.levelname.lower()
+        formatter = logging.Formatter(self.LOG_FORMAT, datefmt=self.DATE_FORMAT)
+        formatted_message = formatter.format(record)
+        return formatted_message.replace(record.levelname, levelname)
+
+class LogManager:
+    def __init__(self, name="MyApp", level=LogLevel.DEBUG, status=""):
+        self.logger = self.setup_logger(name, level.value, status)
+
+    def setup_logger(self, name, level, status):
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+
+        if logger.hasHandlers():
+            logger.handlers.clear()
+
+        # Console handler with color
+        ch = logging.StreamHandler()
+        ch.setLevel(level)
+        ch.setFormatter(CustomFormatter())
+        logger.addHandler(ch)
+
+        # File handler without color
+        fh = logging.FileHandler('gen/pixiv.log')
+        fh.setLevel(level)
+        fh.setFormatter(PlainFormatter())
+        logger.addHandler(fh)
+
+        logger = logging.LoggerAdapter(logger, {"status": status})
+        return logger
+
+    def set_status(self, status):
+        self.logger.extra["status"] = status
+
+    def get_logger(self):
+        return self.logger
+
+# 測試用例
+if __name__ == "__main__":
+    import numpy as np
+    log_manager = LogManager(name="MyApp", level=LogLevel.DEBUG, status="Program A")
+    logger = log_manager.get_logger()
+
+    logger.info("This is an info message.")
+    logger.error("This is an error message.")
+
+    # 更改狀態
+    log_manager.set_status("Program B")
+    logger.info(f"Info message: processing x for {np.random.random_sample()+np.random.randint(0,5):.2f}s.")
+    logger.info(f"Info message: processing x for {np.random.random_sample()+np.random.randint(0,5):.2f}s.")
+    logger.info(f"Info message: processing x for {np.random.random_sample()+np.random.randint(0,5):.2f}s.")
+    logger.debug("Debug message")
+    logger.warning("Warning message")
+    logger.critical("Critical message")
+
+log_manager = LogManager(name="MyApp", level=LogLevel.DEBUG, status="Unknown Process")
+logger = log_manager.get_logger()

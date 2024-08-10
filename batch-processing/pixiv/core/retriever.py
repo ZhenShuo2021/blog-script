@@ -5,7 +5,8 @@ import os
 import concurrent.futures
 import threading
 
-from tool import color_text
+from utils.string_utils import color_text
+from conf import LogLevel, LogManager, logger
 
 # Parameters
 base_url = "https://danbooru.donmai.us/posts?tags=pixiv%3A{}&z=5"
