@@ -2,12 +2,11 @@
 # Todo: glob file type to conf.py
 # Todo: divide pattern to conf.py and string_utils.py
 # Todo: IPTC/EXIF writer
-import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Dict
 
-from conf import LogLevel, LogManager
+from src.logger import LogLevel, LogManager
 from utils.file_utils import ConfigLoader, safe_move, batch_move
 from utils.string_utils import is_system, is_english, is_japanese, split_tags
 
@@ -129,7 +128,7 @@ def main():
     log_manager = LogManager(level=LogLevel.INFO, status="categorizer.py")
     logger = log_manager.get_logger()
 
-    config_loader = ConfigLoader('data/config.toml')
+    config_loader = ConfigLoader('config/config.toml')
     config_loader.load_config()
     categories = config_loader.get_categories()
     combined_paths = config_loader.get_combined_paths()

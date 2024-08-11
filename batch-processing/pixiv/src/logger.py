@@ -74,7 +74,7 @@ class LogManager:
         logger.addHandler(ch)
 
         # File handler without color
-        fh = logging.FileHandler('gen/pixiv.log')
+        fh = logging.FileHandler('data/pixiv.log')
         fh.setLevel(level)
         fh.setFormatter(PlainFormatter())
         logger.addHandler(fh)

@@ -1,5 +1,5 @@
 # Custom
-batch-processing/pixiv/gen/*
+batch-processing/pixiv/data/*
 .DS_Store
 activate
 

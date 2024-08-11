@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
-from core.categorizer import FileCategorizer
+from src.categorizer import FileCategorizer
 from utils import file_utils, string_utils
-from conf import LogLevel, LogManager
+from src.logger import LogLevel, LogManager
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
@@ -12,15 +12,15 @@ def main():
     log_manager = LogManager(level=LogLevel.INFO, status="main.py")
     logger = log_manager.get_logger()
 
-    config_loader = file_utils.ConfigLoader('data/config.toml')
+    config_loader = file_utils.ConfigLoader('config/config.toml')
     config_loader.load_config()
     categories = config_loader.get_categories()
     combined_paths = config_loader.get_combined_paths()
 
     file_categorizer = FileCategorizer(config_loader, logger)
 
-    file_categorizer.batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["child"])
-    file_categorizer.batch_move(Path(combined_paths["other"]['local']))
+    file_utils.batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["child"])
+    file_utils.batch_move(Path(combined_paths["other"]['local']))
 
     # Categorize a single category
     # file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])

@@ -61,7 +61,7 @@ class LogMerger:
 
 if __name__ == "__main__":
     from utils.file_utils import PathManager, ConfigLoader
-    from conf import LogLevel, LogManager, logger
+    from src.logger import LogLevel, LogManager, logger
     log_manager = LogManager(level=LogLevel.DEBUG)
     logger = log_manager.get_logger()
 

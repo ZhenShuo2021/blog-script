@@ -5,7 +5,7 @@ import os
 import re
 from collections import Counter
 import matplotlib.pyplot as plt
-from conf import BASE_PATHS
+from src.logger import BASE_PATHS
 
 from tool import color_text, is_system_file
 

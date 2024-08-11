@@ -1,8 +1,6 @@
 
 # Todo: get_tags in ConfigLoader
 import os
-import json
-import logging
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List
@@ -10,7 +8,7 @@ from typing import Any, Dict, List
 import toml
 
 from utils.string_utils import is_system
-from conf import LogLevel, LogManager, logger
+from src.logger import LogLevel, LogManager, logger
 log_manager = LogManager(level=LogLevel.INFO, status="file_utils.py")
 logger = log_manager.get_logger()
 
@@ -39,7 +37,7 @@ def safe_move(src: str | Path, dst: str | Path) -> None:
         logger.error(f"Source '{src}' does not exist.")
         raise FileNotFoundError(f"Source '{src}' does not exist.")
 
-    logger.warning(f"Working directory: {src}")
+    logger.debug(f"Processing source file: {src}")
     try:
         if src_path.is_file():
             if dst_path.exists():
@@ -163,7 +161,7 @@ class ConfigLoader:
 if __name__ == "__main__":
     
 
-    config_loader = ConfigLoader('data/config.toml')
+    config_loader = ConfigLoader('config/config.toml')
     config_loader.load_config()
     tag_delimiters = config_loader.get_delimiters()
 
