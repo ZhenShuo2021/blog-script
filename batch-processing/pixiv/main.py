@@ -1,35 +1,48 @@
 import os
-from retrieve_artwork import retrieve_artwork_main
-from retrieve_artwork import base_url, html_file
-from post_process import categorize_character, move_to_parent, categorize_artist, sync_folders, merge_log
-from post_process import bluearchive_tags, idolmaster_tags
-from tag_stats import count_tags, read_tag_counts, plot_pie_chart
-from tag_stats import file_name
-from conf import BASE_PATHS, idolmaster_path_child
-from tool import local, remote, count_file_dirs
+from pathlib import Path
+from core.categorizer import FileCategorizer
+from utils import file_utils, string_utils
+from conf import LogLevel, LogManager
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
-print("開始分類檔案...")
-move_to_parent(local.idolmaster, idolmaster_path_child)
-move_to_parent(local.other, only_files=True)
 
-categorize_character(local.bluearchive, bluearchive_tags, search_depth=1)
-categorize_character(local.idolmaster, idolmaster_tags, search_depth=2)
-categorize_artist(local.other)
-file_count = count_file_dirs(local)
+def main():
+    log_manager = LogManager(level=LogLevel.INFO, status="main.py")
+    logger = log_manager.get_logger()
 
-print("開始同步檔案...")
-[sync_folders(getattr(local, key), getattr(remote, key)) for key in vars(local)]   # walk through keys using list comprehension
-merge_log(os.path.join(script_dir, "gen"))
+    config_loader = file_utils.ConfigLoader('data/config.toml')
+    config_loader.load_config()
+    categories = config_loader.get_categories()
+    combined_paths = config_loader.get_combined_paths()
 
-print("開始尋找遺失作品...")
-retrieve_artwork_main(base_url, html_file)
+    file_categorizer = FileCategorizer(config_loader, logger)
 
-print("開始統計標籤...")
-count_tags(BASE_PATHS["remote"], output_file=file_name)
-tag_counts = read_tag_counts(file_name)
-plot_pie_chart(tag_counts, top_n=15, skip=2, output_file=file_name) # skip since the top tags are useless
+    file_categorizer.batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["child"])
+    file_categorizer.batch_move(Path(combined_paths["other"]['local']))
 
-print(f"\033[32m這次新增了\033[0m\033[32;1;4m {file_count} \033[0m\033[32m個檔案🍺\033[0m")
+    # Categorize a single category
+    # file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
+    # file_categorizer.categorize("character", Path(combined_paths["BlueArchive"]['local']), categories["BlueArchive"]["tags"])
+    # file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
+    file_categorizer.categorize_tagged()
+    file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
+
+
+if __name__ == "__main__":
+    main()
+
+# print("開始同步檔案...")
+# [sync_folders(getattr(local, key), getattr(remote, key)) for key in vars(local)]   # walk through keys using list comprehension
+# merge_log(os.path.join(script_dir, "gen"))
+
+# print("開始尋找遺失作品...")
+# retrieve_artwork_main(base_url, html_file)
+
+# print("開始統計標籤...")
+# count_tags(BASE_PATHS["remote"], output_file=file_name)
+# tag_counts = read_tag_counts(file_name)
+# plot_pie_chart(tag_counts, top_n=15, skip=2, output_file=file_name) # skip since the top tags are useless
+
+# print(f"\033[32m這次新增了\033[0m\033[32;1;4m {file_count} \033[0m\033[32m個檔案🍺\033[0m")

@@ -58,6 +58,28 @@ def safe_move(src: str | Path, dst: str | Path) -> None:
         logger.error(f"Error occurred while moving '{src}' to '{dst}': {e}")
 
 
+def batch_move(parent_folder: Path, child_folders: List[str] = []) -> None:
+    def walk_folder(walking_folder, parent_folder):
+        for file_path in walking_folder.iterdir():
+            if file_path.is_file() and not is_system(file_path.name):
+                safe_move(file_path, parent_folder / file_path.name)
+
+    parent_folder.mkdir(exist_ok=True)
+    base_folder = parent_folder.parent
+
+    if child_folders:
+        for child_name in child_folders:
+            child_path = base_folder / child_name
+            if child_path.is_dir():
+                walk_folder(child_path, parent_folder)
+                shutil.rmtree(str(child_path))
+                logger.info(f"Batch move: deleting empty child folder {child_path}.")
+            else:
+                logger.debug(f"Batch move: child folder {child_path} not exist.")
+    else:
+        walk_folder(base_folder, parent_folder)
+
+
 def merge_path(data: Dict[str, Any]) -> Dict[str, Dict[str, Path]]:
     base_paths = data.get('BASE_PATHS', {})
     categories = data.get('CATEGORIES', {})
@@ -77,7 +99,6 @@ def merge_path(data: Dict[str, Any]) -> Dict[str, Dict[str, Path]]:
 
 
 def count_files(paths: Dict[str, Path]) -> Dict[str, int]:
-    logger = logging.getLogger(__name__)
     file_counts = {}
 
     for key, path in paths.items():
@@ -147,7 +168,7 @@ if __name__ == "__main__":
     tag_delimiters = config_loader.get_delimiters()
 
     combined_paths = config_loader.get_combined_paths()
-    1
+    
     # for category, paths in combined_paths.items():
     #     print(f"{category} - Local: {paths['local']}, Remote: {paths['remote']}")
     #     print(f"Tags: {paths['tags']}")
