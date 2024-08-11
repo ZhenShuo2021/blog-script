@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List
 
-import tomlkit
+import toml
 
 from utils.string_utils import is_system
 from conf import LogLevel, LogManager, logger
@@ -28,8 +28,7 @@ def generate_unique_path(path: Path) -> Path:
     return new_path
 
 
-def safe_mv(src: str | Path, dst: str | Path) -> None:
-    logger = logging.getLogger(__name__)
+def safe_move(src: str | Path, dst: str | Path) -> None:
     if src == dst:
         return
 
@@ -40,6 +39,7 @@ def safe_mv(src: str | Path, dst: str | Path) -> None:
         logger.error(f"Source '{src}' does not exist.")
         raise FileNotFoundError(f"Source '{src}' does not exist.")
 
+    logger.warning(f"Working directory: {src}")
     try:
         if src_path.is_file():
             if dst_path.exists():
@@ -51,7 +51,7 @@ def safe_mv(src: str | Path, dst: str | Path) -> None:
                 logger.warning(f"Destination directory '{dst_path}' already exists. It will be renamed.")
                 dst_path = generate_unique_path(dst_path)
             shutil.move(str(src_path), str(dst_path))
-        logger.info(f"Moved '{src}' to '{dst}' successfully.")
+        logger.debug(f"Moved file successfully:\nSrc: '{src_path}'\nDst: '{dst_path}'")
     except PermissionError:
         logger.error(f"Permission denied when moving '{src}' to '{dst}'.")
     except Exception as e:
@@ -98,16 +98,14 @@ def count_files(paths: Dict[str, Path]) -> Dict[str, int]:
 class ConfigLoader:
     def __init__(self, config_path):
         self.config_path = config_path
-        self.config = None
+        self.load_config()
+        self.combined_paths = self.combine_path()
 
     def load_config(self):
         try:
             with open(self.config_path, 'r') as file:
-                self.config = tomlkit.load(file)
+                self.config = (toml.load(file))
                 logger.info("Configuration loaded successfully.")
-                if logger.isEnabledFor(logging.DEBUG):
-                    pretty_toml = tomlkit.dumps(self.config)
-                    logger.debug(f"Configuration:\n{pretty_toml}")
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
             raise
@@ -120,16 +118,15 @@ class ConfigLoader:
 
     def get_delimiters(self):
         return self.config.get('TAG_DELIMITER', {})
-
-
-class PathManager:
-    def __init__(self, config_loader):
-        self.config_loader = config_loader
-
+    
     def get_combined_paths(self):
-        base_paths = self.config_loader.get_base_paths()
-        categories = self.config_loader.get_categories()
+        return self.combined_paths
+
+    def combine_path(self):
+        base_paths = self.get_base_paths()
+        categories = self.get_categories()
         combined_paths = {}
+        # combined_paths = dict.fromkeys(["local", "remote"], dict())
 
         for category, data in categories.items():
             local_combined = os.path.join(base_paths['local_path'], data['local_path'])
@@ -137,12 +134,9 @@ class PathManager:
             combined_paths[category] = {
                 'local': local_combined,
                 'remote': remote_combined,
-                'tags': data.get('tags', {}),
-                'children': data.get('child', [])
             }
-            logger.debug(f"Combined dict path for {category}:\n {json.dumps(combined_paths[category], ensure_ascii=False, indent=4)}")
-
         return combined_paths
+
 
 
 if __name__ == "__main__":
@@ -152,12 +146,11 @@ if __name__ == "__main__":
     config_loader.load_config()
     tag_delimiters = config_loader.get_delimiters()
 
-    path_manager = PathManager(config_loader)
-    combined_paths = path_manager.get_combined_paths()
-
+    combined_paths = config_loader.get_combined_paths()
+    1
     # for category, paths in combined_paths.items():
     #     print(f"{category} - Local: {paths['local']}, Remote: {paths['remote']}")
     #     print(f"Tags: {paths['tags']}")
     #     print(f"Children: {paths['children']}")
 
-    # safe_mv(Path('struct.txt'), Path('structA.txt'))
+    # safe_move(Path('struct.txt'), Path('structA.txt'))

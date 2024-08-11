@@ -1,110 +1,118 @@
+
+# Todo: glob file type to conf.py
+# Todo: divide pattern to conf.py and string_utils.py
+# Todo: IPTC/EXIF writer
+import shutil
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Dict
-from abc import ABC, abstractmethod
-import shutil
 
 from conf import LogLevel, LogManager, logger
-from utils.file_utils import PathManager, ConfigLoader, safe_mv
-from utils.string_utils import is_system, is_english, is_japanese
+from utils.file_utils import ConfigLoader, safe_move
+from utils.string_utils import is_system, is_english, is_japanese, split_tags
 
-log_manager = LogManager(level=LogLevel.INFO, status="categorizer.py")
-logger = log_manager.get_logger()
 
-class CategoryStrategy(ABC):
+class ICategory(ABC):
+    def __init__(self, tag_delimiter: Dict[str, str], logger):
+        self.tag_delimiter = tag_delimiter
+        self.logger = logger
+
+    def categorize(self, base_path: Path, tags: Dict[str, str]) -> None:
+        if not base_path.is_dir():
+            self.logger.error(f"The path {base_path} is not a directory.")
+            return
+
+        self._prepare_folders(base_path, tags)
+        self._process_files(base_path, tags)
+
     @abstractmethod
-    def categorize(self, base_path: Path, tags: Dict[str, str], search_depth: int) -> None:
+    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
         pass
 
+    @abstractmethod
+    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
+        pass
 
-class CharacterCategoryStrategy(CategoryStrategy):
-    def categorize(self, base_path: Path, tags: Dict[str, str], search_depth: int) -> None:
-        if not base_path.is_dir():
-            logger.error(f"The path {base_path} is not a directory.")
-            return
+    def _move_file_based_on_tags(self, base_path: Path, file_path: Path, file_tags: List[str], tags: Dict[str, str]) -> None:
+        """
+        Search the first file_tags in tags and move to target_folder.
 
-        other_folder = base_path / tags.get("others", "others")
-        other_folder.mkdir(exist_ok=True)
-
-        for path in base_path.rglob('*'):
-            if is_system(path.name):
-                continue
-
-            if path.is_dir():
-                if path.name == tags.get("others"):
-                    continue
-
-                current_depth = len(path.relative_to(base_path).parts)
-                if current_depth > search_depth:
-                    continue
-
-            elif path.is_file():
-                file_name = path.stem
-                tags_in_file = file_name.split(",")
-                if tags_in_file:
-                    tags_in_file[0] = tags_in_file[0].split("_")[-1]
-
-                self._move_file_based_on_tags(base_path, path, tags_in_file, tags, other_folder)
-
-    def _move_file_based_on_tags(self, base_path: Path, file_path: Path, tags_in_file: List[str], tags: Dict[str, str], other_folder: Path) -> None:
-        for tag in tags_in_file:
+        base_path: File destination. In configuration: BASE_PATHS / CATEGORIES.BlueArchive.remote
+        file_path: File source.
+        file_tags: Tags extract from file name.
+        tags: Special tags for file name. In configuration: CATEGORIES.BlueArchive.tags
+        """
+        for tag in file_tags:
             if tag in tags:
                 target_folder = base_path / tags[tag]
-                target_folder.mkdir(exist_ok=True)
-
-                dst_file = target_folder / file_path.name
-                safe_mv(file_path, dst_file)
+                target_folder.mkdir(parents=True, exist_ok=True)
+                safe_move(file_path, target_folder / file_path.name)
                 return
-        safe_mv(file_path, other_folder / file_path.name)
+
+        self.other_folder.mkdir(parents=True, exist_ok=True)
+        safe_move(file_path, self.other_folder / file_path.name)
 
 
-class ArtistCategoryStrategy(CategoryStrategy):
-    def categorize(self, base_path: Path, tags: Dict[str, str], search_depth: int) -> None:
-        if not base_path.is_dir():
-            logger.error(f"The path {base_path} is not a directory.")
-            return
+class CharacterCategory(ICategory):
+    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+        self.other_folder = base_path / tags.get("others", "others")
+        self.other_folder.mkdir(exist_ok=True)
 
-        folders = {
+    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
+        for file_path in base_path.rglob('*'):
+            if is_system(file_path.name):
+                continue
+            if file_path.is_file():
+                file_name = file_path.stem
+                file_tags = split_tags(file_name, self.tag_delimiter)
+                self._move_file_based_on_tags(base_path, file_path, file_tags, tags)
+
+
+class ArtistCategory(ICategory):
+    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+        self.folders = {
             "EN Artist": base_path / "EN Artist",
             "JP Artist": base_path / "JP Artist",
             "Other Artist": base_path / "Other Artist"
         }
-
-        for folder in folders.values():
+        for folder in self.folders.values():
             folder.mkdir(parents=True, exist_ok=True)
 
+    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
         for file_path in base_path.iterdir():
             if file_path.is_file() and not is_system(file_path.name):
                 first_char = file_path.name[0]
-
                 if is_english(first_char):
-                    safe_mv(file_path, folders["EN Artist"] / file_path.name)
+                    safe_move(file_path, self.folders["EN Artist"] / file_path.name)
                 elif is_japanese(first_char):
-                    safe_mv(file_path, folders["JP Artist"] / file_path.name)
+                    safe_move(file_path, self.folders["JP Artist"] / file_path.name)
                 else:
-                    safe_mv(file_path, folders["Other Artist"] / file_path.name)
+                    safe_move(file_path, self.folders["Other Artist"] / file_path.name)
 
 
 class FileCategorizer:
-    def __init__(self, config_loader: ConfigLoader, path_manager: PathManager):
+    def __init__(self, config_loader: ConfigLoader, logger: LogManager):
         self.config_loader = config_loader
-        self.path_manager = path_manager
+        self.tag_delimiter = config_loader.get_delimiters()  # 讀取分隔符設定
+        self.combined_paths = config_loader.get_combined_paths()
+        self.logger = logger
         self.strategies = {
-            "character": CharacterCategoryStrategy(),
-            "artist": ArtistCategoryStrategy()
+            "character": CharacterCategory(self.tag_delimiter, self.logger),
+            "artist": ArtistCategory(self.tag_delimiter, self.logger)
         }
 
-    def categorize(self, category: str, base_path: Path, tags: Dict[str, str], search_depth: int) -> None:
+    def categorize(self, category: str, base_path: Path, tags: Dict[str, str]) -> None:
         strategy = self.strategies.get(category)
         if strategy:
-            strategy.categorize(base_path, tags, search_depth)
+            strategy.categorize(base_path, tags)
         else:
-            logger.error(f"Unknown category strategy: {category}")
+            self.logger.error(f"Unknown category strategy: {category}")
 
     def batch_move(self, parent_folder: Path, child_folders: List[str] = []) -> None:
         def walk_folder(walking_folder, parent_folder):
             for file_path in walking_folder.iterdir():
                 if file_path.is_file() and not is_system(file_path.name):
-                    safe_mv(file_path, parent_folder / file_path.name)
+                    safe_move(file_path, parent_folder / file_path.name)
 
         parent_folder.mkdir(exist_ok=True)
         base_folder = parent_folder.parent
@@ -115,42 +123,46 @@ class FileCategorizer:
                 if child_path.is_dir():
                     walk_folder(child_path, parent_folder)
                     shutil.rmtree(str(child_path))
-                    logger.info(f"Batch move: deleing empty child folder {child_path}.")
+                    self.logger.info(f"Batch move: deleting empty child folder {child_path}.")
                 else:
-                    logger.debug(f"Batch move: child folder {child_path} not exist.")
+                    self.logger.debug(f"Batch move: child folder {child_path} not exist.")
         else:
             walk_folder(base_folder, parent_folder)
 
+    def categorize_tagged(self):
+        category_config = self.config_loader.get_categories()
+        
+        for key in category_config:
+            if "tags" in category_config[key]:
+                local_path = Path(self.combined_paths[key]["local"])
+                tags = category_config[key]["tags"]
+                
+                self.categorize("character", local_path, tags)
+                logger.info(f"Categorized {key} based on tags")
+            else:
+                logger.debug(f"No tags found for {key}, skipping categorization")
+
 
 def main():
+    log_manager = LogManager(level=LogLevel.INFO, status="categorizer.py")
+    logger = log_manager.get_logger()
+
     config_loader = ConfigLoader('data/config.toml')
     config_loader.load_config()
-
-    path_manager = PathManager(config_loader)
-    combined_paths = path_manager.get_combined_paths()
-
-    file_categorizer = FileCategorizer(config_loader, path_manager)
-
-    file_categorizer.batch_move(Path(combined_paths["IdolMaster"]['local']),
-                                config_loader.get_categories()["IdolMaster"]["child"])
+    categories = config_loader.get_categories()
+    combined_paths = config_loader.get_combined_paths()
+    
+    file_categorizer = FileCategorizer(config_loader, logger)
+    
+    file_categorizer.batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["child"])
     file_categorizer.batch_move(Path(combined_paths["other"]['local']))
 
-    # def process_categories(config_loader, combined_paths):
-    #     categories = config_loader.get_categories()
-
-    #     for key, value in categories.items():
-    #         if "tags" not in value:
-    #             # 執行myFunc函數，傳入相關參數
-    #             local_path = Path(combined_paths[key]["local"])
-    #             file_categorizer.categorize(key, local_path, value.get("tags", []), search_depth=1)
-
-    # process_categories(config_loader, combined_paths)
-    file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']),
-                                config_loader.get_categories()["IdolMaster"]["tags"], search_depth=1)
-    file_categorizer.categorize("character", Path(combined_paths["BlueArchive"]['local']),
-                                config_loader.get_categories()["BlueArchive"]["tags"], search_depth=1)
-    file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {}, search_depth=1)
-
-
+    # Categorize a single category
+    # file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
+    # file_categorizer.categorize("character", Path(combined_paths["BlueArchive"]['local']), categories["BlueArchive"]["tags"])
+    # file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
+    file_categorizer.categorize_tagged()
+    file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
+    
 if __name__ == "__main__":
     main()

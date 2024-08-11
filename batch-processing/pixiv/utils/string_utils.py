@@ -21,6 +21,14 @@ def is_english(character: str) -> bool:
 def is_japanese(character: str) -> bool:
     return (HIRAGANA_START <= character <= HIRAGANA_END) or (KATAKANA_START <= character <= KATAKANA_END)
 
+def split_tags(file_name: str, tag_delimiter: dict) -> list[str]:
+    front_delim = tag_delimiter.get('front', '')
+    between_delim = tag_delimiter.get('between', ',')
+    file_tags = file_name.split(between_delim)
+    if file_tags:
+        file_tags[0] = file_tags[0].split(front_delim)[-1]
+    return file_tags
+
 def color_text(text: str, color: str=None, background: str=None, style:str =None) -> str:
     """
     返回帶有 ANSI 顏色控制碼的文本。
