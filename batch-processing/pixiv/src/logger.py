@@ -1,5 +1,7 @@
 import logging
+import os
 from enum import Enum
+
 
 class LogLevel(Enum):
     DEBUG = logging.DEBUG
@@ -74,6 +76,8 @@ class LogManager:
         logger.addHandler(ch)
 
         # File handler without color
+        if not os.path.exists('./data'):
+            os.makedirs('./data')
         fh = logging.FileHandler('data/pixiv.log')
         fh.setLevel(level)
         fh.setFormatter(PlainFormatter())

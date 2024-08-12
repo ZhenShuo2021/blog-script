@@ -1,6 +1,5 @@
 
 # Todo: glob file type to conf.py
-# Todo: divide pattern to conf.py and string_utils.py
 # Todo: IPTC/EXIF writer
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -10,10 +9,15 @@ from src.logger import LogLevel, LogManager
 from utils.file_utils import ConfigLoader, safe_move, batch_move
 from utils.string_utils import is_system, is_english, is_japanese, split_tags
 
+# Some global constants
+others_name = "others"   # key name in config
+EN = "EN Artist"
+JP = "JP Artist"
+Other = "Other Artist"
 
 class ICategorizer(ABC):
-    def __init__(self, tag_delimiter: Dict[str, str], logger):
-        self.tag_delimiter = tag_delimiter
+    def __init__(self, config_loader: ConfigLoader, logger):
+        self.tag_delimiter = config_loader.get_delimiters()
         self.logger = logger
 
     def categorize(self, base_path: Path, tags: Dict[str, str]) -> None:
@@ -32,6 +36,19 @@ class ICategorizer(ABC):
     def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
         pass
 
+
+class TaggedCategorizer(ICategorizer):
+    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+        self.other_folder = base_path / tags.get(others_name, "others")
+        self.other_folder.mkdir(exist_ok=True)
+
+    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
+        for file_path in base_path.rglob('*'):
+            if file_path.is_file() and not is_system(file_path.name):
+                file_name = file_path.stem
+                file_tags = split_tags(file_name, self.tag_delimiter)
+                self._move_tagged(base_path, file_path, file_tags, tags)
+
     def _move_tagged(self, base_path: Path, file_path: Path, file_tags: List[str], tags: Dict[str, str]) -> None:
         """
         Search the first file_tags in tags and move to target_folder.
@@ -40,7 +57,7 @@ class ICategorizer(ABC):
         file_path: File source.
         file_tags: Tags extract from file name.
         tags: Special tags for file name. In configuration: CATEGORIES.BlueArchive.tags
-        """ 
+        """
         target_folder = self._get_tagged_path(base_path, file_tags, tags)
         if target_folder:
             safe_move(file_path, target_folder / file_path.name)
@@ -56,25 +73,13 @@ class ICategorizer(ABC):
                 return target_folder
         return None
 
-class CharacterCategorizer(ICategorizer):
-    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
-        self.other_folder = base_path / tags.get("others", "others")
-        self.other_folder.mkdir(exist_ok=True)
-
-    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
-        for file_path in base_path.rglob('*'):
-            if file_path.is_file() and not is_system(file_path.name):
-                file_name = file_path.stem
-                file_tags = split_tags(file_name, self.tag_delimiter)
-                self._move_tagged(base_path, file_path, file_tags, tags)
-
 
 class ArtistCategorizer(ICategorizer):
     def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
         self.folders = {
-            "EN Artist": base_path / "EN Artist",
-            "JP Artist": base_path / "JP Artist",
-            "Other Artist": base_path / "Other Artist"
+            "EN": base_path / EN,
+            "JP": base_path / JP,
+            "Other": base_path / Other
         }
         for folder in self.folders.values():
             folder.mkdir(parents=True, exist_ok=True)
@@ -84,11 +89,11 @@ class ArtistCategorizer(ICategorizer):
             if file_path.is_file() and not is_system(file_path.name):
                 first_char = file_path.name[0]
                 if is_english(first_char):
-                    folder_name = self.folders["EN Artist"]
+                    folder_name = self.folders["EN"]
                 elif is_japanese(first_char):
-                    folder_name = self.folders["JP Artist"]
+                    folder_name = self.folders["JP"]
                 else:
-                    folder_name = self.folders["Other Artist"]
+                    folder_name = self.folders["Other"]
                 safe_move(file_path, folder_name / file_path.name)
 
 
@@ -99,8 +104,8 @@ class FileCategorizer:
         self.combined_paths = config_loader.get_combined_paths()
         self.logger = logger
         self.strategies = {
-            "character": CharacterCategorizer(self.tag_delimiter, self.logger),
-            "artist": ArtistCategorizer(self.tag_delimiter, self.logger)
+            "character": TaggedCategorizer(self.config_loader, self.logger),
+            "artist": ArtistCategorizer(self.config_loader, self.logger)
         }
 
     def categorize(self, category: str, base_path: Path, tags: Dict[str, str]) -> None:
@@ -112,12 +117,12 @@ class FileCategorizer:
 
     def categorize_tagged(self):
         category_config = self.config_loader.get_categories()
-        
+
         for key in category_config:
             if "tags" in category_config[key]:
                 local_path = Path(self.combined_paths[key]["local"])
                 tags = category_config[key]["tags"]
-                
+
                 self.categorize("character", local_path, tags)
                 self.logger.info(f"Categorized {key} based on tags")
             else:
@@ -132,18 +137,19 @@ def main():
     config_loader.load_config()
     categories = config_loader.get_categories()
     combined_paths = config_loader.get_combined_paths()
-    
+
     file_categorizer = FileCategorizer(config_loader, logger)
-    
-    batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["child"])
-    batch_move(Path(combined_paths["other"]['local']))
+
+    batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["children"])
+    batch_move(Path(combined_paths["Others"]['local']))
 
     # Categorize a single category
     # file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
     # file_categorizer.categorize("character", Path(combined_paths["BlueArchive"]['local']), categories["BlueArchive"]["tags"])
-    # file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
+    # file_categorizer.categorize("artist", Path(combined_paths["others"]['local']), {})
     file_categorizer.categorize_tagged()
-    file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
-    
+    file_categorizer.categorize("artist", Path(combined_paths["Others"]['local']), {})
+
+
 if __name__ == "__main__":
     main()

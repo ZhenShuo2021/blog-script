@@ -2,11 +2,11 @@
 local_path = "/Users/leo/Pictures/downloads拷貝/"
 remote_path = "/Volumes/photo/download/test/"
 
-[CATEGORIES.BlueArchive]
+[categories.BlueArchive]
 local_path = "ブルーアーカイブ"
 remote_path = "BlueArchive"
 
-  [CATEGORIES.BlueArchive.tags]
+  [categories.BlueArchive.tags]
   "調月リオ" = "調月リオ"
   "调月莉音" = "調月リオ"
   "早瀬ユウカ" = "早瀬ユウカ"
@@ -27,17 +27,17 @@ remote_path = "BlueArchive"
   "砂狼シロコ" = "砂狼シロコ"
   "others" = "其他角色"
 
-[CATEGORIES.IdolMaster]
+[categories.IdolMaster]
 local_path = "IdolMaster"
 remote_path = "IdolMaster"
-child = [
+children = [
   "アイドルマスターシャイニーカラーズ",
   "アイドルマスターシンデレラガールズ",
   "アイドルマスター",
   "学園アイドルマスター"
 ]
 
-  [CATEGORIES.IdolMaster.tags]
+  [categories.IdolMaster.tags]
   "黛冬優子" = "黛冬優子"
   "桑山千雪" = "桑山千雪"
   "市川雛菜" = "市川雛菜"
@@ -70,18 +70,20 @@ child = [
   "澀谷凜" = "澀谷凜"
   "others" = "其他角色"
 
-[CATEGORIES.genshin]
+[categories.Genshin]
 local_path = "原神"
 remote_path = "原神"
 
-[CATEGORIES.marin]
+[categories.Marin]
 local_path = "喜多川海夢"
 remote_path = "others/喜多川海夢"
 
-[CATEGORIES.other]
+[categories.Others]
 local_path = "others"
 remote_path = "others/雜圖"
 
-["TAG_DELIMITER"]
+["tag_delimiter"]
 front = "{}_"
 between = ","
+
+file_type = ["jpg", "png", "webm"]

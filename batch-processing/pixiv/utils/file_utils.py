@@ -133,13 +133,16 @@ class ConfigLoader:
         return self.config.get('BASE_PATHS', {})
 
     def get_categories(self):
-        return self.config.get('CATEGORIES', {})
+        return self.config.get('categories', {})
 
     def get_delimiters(self):
-        return self.config.get('TAG_DELIMITER', {})
+        return self.config.get('tag_delimiter', {})
     
     def get_combined_paths(self):
         return self.combined_paths
+    
+    def get_file_type(self):
+        return self.file_type
 
     def combine_path(self):
         base_paths = self.get_base_paths()
