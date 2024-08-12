@@ -15,6 +15,7 @@ EN = "EN Artist"
 JP = "JP Artist"
 Other = "Other Artist"
 
+
 class ICategorizer(ABC):
     def __init__(self, config_loader: ConfigLoader, logger):
         self.tag_delimiter = config_loader.get_delimiters()
@@ -84,7 +85,7 @@ class ArtistCategorizer(ICategorizer):
         for folder in self.folders.values():
             folder.mkdir(parents=True, exist_ok=True)
 
-    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
+    def _process_files(self, base_path: Path, tags: Dict[str, str] | None=None) -> None:
         for file_path in base_path.iterdir():
             if file_path.is_file() and not is_system(file_path.name):
                 first_char = file_path.name[0]
@@ -100,7 +101,6 @@ class ArtistCategorizer(ICategorizer):
 class FileCategorizer:
     def __init__(self, config_loader: ConfigLoader, logger: LogManager):
         self.config_loader = config_loader
-        self.tag_delimiter = config_loader.get_delimiters()  # 讀取分隔符設定
         self.combined_paths = config_loader.get_combined_paths()
         self.logger = logger
         self.strategies = {
@@ -109,6 +109,19 @@ class FileCategorizer:
         }
 
     def categorize(self, category: str, base_path: Path, tags: Dict[str, str]) -> None:
+        """Categorize files for single category (folder).
+
+        Usage: 
+        - file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
+        - file_categorizer.categorize("artist", Path(combined_paths["others"]['local']), {})
+        
+        Args:
+          category: Working directory.
+          base_path: Download directory. Passed to ICategorizer.categorize.
+
+        Returns:
+          None
+        """
         strategy = self.strategies.get(category)
         if strategy:
             strategy.categorize(base_path, tags)
@@ -116,17 +129,44 @@ class FileCategorizer:
             self.logger.error(f"Unknown category strategy: {category}")
 
     def categorize_tagged(self):
-        category_config = self.config_loader.get_categories()
+        """Categorize files for all category specified in config.
 
-        for key in category_config:
-            if "tags" in category_config[key]:
-                local_path = Path(self.combined_paths[key]["local"])
-                tags = category_config[key]["tags"]
+        Loop over all categories specified in config and categorize them based on pre-defined tags.
+        """
+        categories = self.config_loader.get_categories()
+        for category in categories:
+            self._pre_process(categories, category)
+            self._categorize_tagged(categories, category)
 
-                self.categorize("character", local_path, tags)
-                self.logger.info(f"Categorized {key} based on tags")
+    def _pre_process(self, categories: str, category: Dict):
+        """Private helper function for categorization.
+        
+        Preprocess if "children" in category keys or category equals to "Others"
+        """
+        local_path = Path(self.combined_paths[category]["local"])
+        tags = categories[category].get("tags")
+        if "children" in categories[category]:
+            batch_move(Path(local_path), categories[category]["children"])
+        if "Others" == category:
+            batch_move(Path(self.combined_paths[category]["local"]), [])
+            if "tags" in categories[category]:
+                self.categorize("character", Path(local_path), tags)
             else:
-                self.logger.debug(f"No tags found for {key}, skipping categorization")
+                self.categorize("artist", Path(local_path), {})
+
+    def _categorize_tagged(self, categories: str, category: Dict):
+        """Private helper function for categorization.
+
+        Categorize all categories with "tags" key.
+        """
+        if "tags" in categories[category]:
+            local_path = Path(self.combined_paths[category]["local"])
+            tags = categories[category]["tags"]
+
+            self.categorize("character", local_path, tags)
+            self.logger.info(f"Categorized {category} based on tags")
+        else:
+            self.logger.debug(f"No tags found for {category}, skipping categorization")
 
 
 def main():
@@ -135,20 +175,9 @@ def main():
 
     config_loader = ConfigLoader('config/config.toml')
     config_loader.load_config()
-    categories = config_loader.get_categories()
-    combined_paths = config_loader.get_combined_paths()
 
     file_categorizer = FileCategorizer(config_loader, logger)
-
-    batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["children"])
-    batch_move(Path(combined_paths["Others"]['local']))
-
-    # Categorize a single category
-    # file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
-    # file_categorizer.categorize("character", Path(combined_paths["BlueArchive"]['local']), categories["BlueArchive"]["tags"])
-    # file_categorizer.categorize("artist", Path(combined_paths["others"]['local']), {})
     file_categorizer.categorize_tagged()
-    file_categorizer.categorize("artist", Path(combined_paths["Others"]['local']), {})
 
 
 if __name__ == "__main__":
