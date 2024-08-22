@@ -170,9 +170,7 @@ if __name__ == "__main__":
 
     combined_paths = config_loader.get_combined_paths()
     
-    # for category, paths in combined_paths.items():
-    #     print(f"{category} - Local: {paths['local']}, Remote: {paths['remote']}")
-    #     print(f"Tags: {paths['tags']}")
-    #     print(f"Children: {paths['children']}")
+    for category, paths in combined_paths.items():
+        print(f"{category} - Local: {paths['local']}, Remote: {paths['remote']}")
 
     # safe_move(Path('struct.txt'), Path('structA.txt'))
