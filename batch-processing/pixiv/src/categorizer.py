@@ -1,4 +1,8 @@
 
+# ICategorizer同時作為介面以及父類別使用，所有子類別需要實作_prepare_folders, _process_files，最後呼叫共用的categorize完成分類。
+# FileCategorizer為工廠模式以及使用者介面，使用者只需要知道config以及選擇使用categorize或categorize_all其中一種，不需接觸底層架構。
+
+# !FIXME: When category w/ child or w/o tags, file_categorizer.categorize doesn't _pre_process. 
 # Todo: glob file type to conf.py
 # Todo: IPTC/EXIF writer
 from abc import ABC, abstractmethod
@@ -16,16 +20,20 @@ JP = "JP Artist"
 Other = "Other Artist"
 
 
+# Do not change unless necessary
 class ICategorizer(ABC):
     def __init__(self, config_loader: ConfigLoader, logger):
         self.tag_delimiter = config_loader.get_delimiters()
         self.logger = logger
 
     def categorize(self, base_path: Path, tags: Dict[str, str]) -> None:
-        if not base_path.is_dir():
-            self.logger.error(f"The path {base_path} is not a directory.")
+        if base_path.is_file():
+            self.logger.error(f"A file named '{base_path.name}' already exists at this location.")
             return
-
+        elif not base_path.exists():
+            base_path.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"Directory '{base_path}' created successfully.")
+        
         self._prepare_folders(base_path, tags)
         self._process_files(base_path, tags)
 
@@ -38,6 +46,7 @@ class ICategorizer(ABC):
         pass
 
 
+# Categorizers
 class TaggedCategorizer(ICategorizer):
     def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
         self.other_folder = base_path / tags.get(others_name, "others")
@@ -75,6 +84,7 @@ class TaggedCategorizer(ICategorizer):
         return None
 
 
+# Categorizers
 class ArtistCategorizer(ICategorizer):
     def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
         self.folders = {
@@ -98,21 +108,42 @@ class ArtistCategorizer(ICategorizer):
                 safe_move(file_path, folder_name / file_path.name)
 
 
+# Categorizers
+class CustomCategorizer(ICategorizer):
+    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+        # Some preprocess here
+        pass
+
+    def _process_files(self, base_path: Path, tags: Dict[str, str] | None=None) -> None:
+        # Main categorize algorithm here
+        pass
+
+    def _helper_function(self) -> None:
+        # Add custom functions here
+        pass
+
+
+# Main caller
 class FileCategorizer:
     def __init__(self, config_loader: ConfigLoader, logger: LogManager):
         self.config_loader = config_loader
         self.combined_paths = config_loader.get_combined_paths()
         self.logger = logger
+
+        # Function pointers for different categorizers
         self.strategies = {
             "character": TaggedCategorizer(self.config_loader, self.logger),
-            "artist": ArtistCategorizer(self.config_loader, self.logger)
+            "artist": ArtistCategorizer(self.config_loader, self.logger),
+            "custom": CustomCategorizer(self.config_loader, self.logger)
         }
 
     def categorize(self, category: str, base_path: Path, tags: Dict[str, str]) -> None:
         """Categorize files for single category (folder).
 
         Usage: 
-        - file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
+        1. With tags  
+        file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
+        2. Without tags
         - file_categorizer.categorize("artist", Path(combined_paths["others"]['local']), {})
         
         Args:
@@ -128,7 +159,7 @@ class FileCategorizer:
         else:
             self.logger.error(f"Unknown category strategy: {category}")
 
-    def categorize_tagged(self):
+    def categorize_all(self):
         """Categorize files for all category specified in config.
 
         Loop over all categories specified in config and categorize them based on pre-defined tags.
@@ -177,7 +208,7 @@ def main():
     config_loader.load_config()
 
     file_categorizer = FileCategorizer(config_loader, logger)
-    file_categorizer.categorize_tagged()
+    file_categorizer.categorize_all()
 
 
 if __name__ == "__main__":

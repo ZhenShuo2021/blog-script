@@ -9,25 +9,27 @@ os.chdir(script_dir)
 
 
 def main():
+    # Initialize logger
     log_manager = LogManager(level=LogLevel.INFO, status="main.py")
+    logger = log_manager.get_logger()
+
+    # Initialize config
+    log_manager = LogManager(level=LogLevel.INFO, status="categorizer.py")
     logger = log_manager.get_logger()
 
     config_loader = file_utils.ConfigLoader('config/config.toml')
     config_loader.load_config()
-    categories = config_loader.get_categories()
-    combined_paths = config_loader.get_combined_paths()
 
     file_categorizer = FileCategorizer(config_loader, logger)
+    # file_categorizer.categorize_all()
 
-    file_utils.batch_move(Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["child"])
-    file_utils.batch_move(Path(combined_paths["other"]['local']))
-
-    # Categorize a single category
-    # file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
-    # file_categorizer.categorize("character", Path(combined_paths["BlueArchive"]['local']), categories["BlueArchive"]["tags"])
-    # file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
-    file_categorizer.categorize_tagged()
-    file_categorizer.categorize("artist", Path(combined_paths["other"]['local']), {})
+    # Or you can categorize a single category
+    # file_categorizer.categorize("character", 
+    #                             Path(config_loader.combined_paths["BlueArchive"]['local']), 
+    #                             config_loader.get_categories()["BlueArchive"]["tags"])
+    # file_categorizer.categorize("artist", 
+    #                             Path(config_loader.combined_paths["Others"]['local']), 
+    #                             {})
 
 
 if __name__ == "__main__":
