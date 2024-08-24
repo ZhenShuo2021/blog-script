@@ -74,7 +74,7 @@ def batch_move(parent_folder: Path, child_folders: List[str] = []) -> None:
                     shutil.rmtree(str(child_path))
                     logger.info(f"Deleting empty child folder '{child_path}'.")
                 else:
-                    logger.info(f"'{child_path}' is not empty; deleting process canceled.")
+                    logger.debug(f"'{child_path}' is not empty; deleting process canceled.")
             else:
                 logger.debug(f"Child folder {child_path} not exist.")
     
@@ -196,8 +196,6 @@ class ConfigLoader:
 
 
 if __name__ == "__main__":
-    
-
     config_loader = ConfigLoader('config/config.toml')
     config_loader.load_config()
     tag_delimiters = config_loader.get_delimiters()

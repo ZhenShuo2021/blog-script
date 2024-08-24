@@ -54,7 +54,8 @@ class FileSyncer:
             'rsync', '-aq', '--ignore-existing', '--progress',
             f'--log-file={log_path}', f'{src}/', f'{dst}/'
         ]
-        self.logger.debug(f"Syncing '{src}' to '{dst}'")
+        print(command)
+        self.logger.debug(f"Start Syncing '{src}' to '{dst}'.")
         subprocess.run(command, check=True)
 
 class LogMerger:
