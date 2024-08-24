@@ -3,18 +3,16 @@
 
 import os
 import re
-import sys
-import argparse
 from collections import Counter
 import matplotlib.pyplot as plt
-from conf import BASE_PATHS
-
-from tool import color_text, is_system_file
+from utils.file_utils import ConfigLoader
+from utils.string_utils import is_system, color_text, split_tags
 
 # Parameters
 # working_dir: 統計標籤的工作目錄
 # file_name: 輸出標籤和圖表的檔案名稱
-work_dir = BASE_PATHS["remote"]
+config_loader = ConfigLoader('config/config.toml')
+work_dir = config_loader.get_base_paths().get("remote")
 file_name = 'tag_stats'
 
 # Functions
@@ -22,7 +20,7 @@ plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']
 plt.rcParams['axes.unicode_minus'] = False
 
 def read_tag_counts(file_name):
-    file_name = "./gen/" + file_name + ".txt"
+    file_name = "./data/" + file_name + ".txt"
     tag_counts = Counter()
     with open(file_name, 'r') as file:
         for line in file:
@@ -30,7 +28,7 @@ def read_tag_counts(file_name):
             tag_counts[tag] = int(count)
     return tag_counts
 
-def plot_pie_chart(tag_counts, top_n=25, skip=2, output_file='tags', dpi=360):
+def plot_pie_chart(tag_counts, top_n=25, skip=2, output_file=file_name, dpi=360):
     output_file = output_file + ".jpg"
     keywords_to_skip = ['users', 'ブルアカ', 'BlueArchive']
     exact_match_to_skip = '閃耀色彩'
@@ -57,62 +55,47 @@ def plot_pie_chart(tag_counts, top_n=25, skip=2, output_file='tags', dpi=360):
             text.set_verticalalignment('bottom')
     
     plt.axis('equal')
-    plt.savefig(f'./gen/{output_file}', dpi=dpi, format='jpg', bbox_inches='tight')
+    plt.savefig(f'./data/{output_file}', dpi=dpi, format='jpg', bbox_inches='tight')
     plt.close()
 
-    print(f"圖表已輸出到{os.getcwd()}/gen/{output_file}")
+    print(f"圖表已輸出到{os.getcwd()}/data/{output_file}")
     
 # tag
-def extract_tags(filename):
-    match = re.search(r'\{}_(.+)\.', filename)
-    if match:
-        tags = match.group(1).split(',')
-        return tags
-    return []
-
-def count_tags(directory, recursive=True, output_file='tags'):
+def count_tags(directory, tag_delimiter, recursive=True, output_file='tags'):
     all_tags = []
     total_files = 0
 
     if recursive:
         for root, _, files in os.walk(directory):
             for filename in files:
-                if not is_system_file(filename):
-                    tags = extract_tags(filename)
+                if not is_system(filename):
+                    tags = split_tags(filename, tag_delimiter)
                     all_tags.extend(tags)
                     total_files += 1
     else:
         for filename in os.listdir(directory):
-            if os.path.isfile(os.path.join(directory, filename)) and not is_system_file(filename):
-                tags = extract_tags(filename)
+            if os.path.isfile(os.path.join(directory, filename)) and not is_system(filename):
+                tags = split_tags(filename, tag_delimiter)
                 all_tags.extend(tags)
                 total_files += 1
     
     tag_counts = Counter(all_tags)
     sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
     
-    with open(f'./gen/{output_file}.txt', 'w', encoding='utf-8') as f:
+    with open(f'./data/{output_file}.txt', 'w', encoding='utf-8') as f:
         f.write(f"Total files: {total_files}\n")
         for tag, count in sorted_tags:
             f.write(f"{tag}: {count}\n")
 
-    print(f"標籤已輸出到{os.getcwd()}/gen/{output_file}.txt")
+    print(f"標籤已輸出到{os.getcwd()}/data/{output_file}.txt")
 
-# def tag_stats_main():
-#     parser = argparse.ArgumentParser(description="Extract tags from filenames and generate statistics.")
-#     parser.add_argument("directory", help="Directory to process")
-#     parser.add_argument("-r", "--recursive", action="store_true", help="Search subdirectories recursively")
-    
-#     args = parser.parse_args()
-    
-#     if not os.path.isdir(args.directory):
-#         print(f"Error: {args.directory} is not a valid directory")
-#         sys.exit(1)
-    
-#     count_tags()
-#     print(f"Tag statistics have been written to tags.txt")
+
+def viewer_main(config_loader, file_name=file_name):
+    base_path = config_loader.get_base_paths()
+    tag_delimiter = config_loader.get_delimiters()
+    count_tags(base_path["local_path"], tag_delimiter, output_file=file_name)
+    tag_counts = read_tag_counts(file_name)
+    plot_pie_chart(tag_counts, 15, skip=2)   # skip since the top tags are useless
 
 if __name__ == "__main__":
-    count_tags(work_dir, output_file=file_name)
-    tag_counts = read_tag_counts(file_name)
-    plot_pie_chart(tag_counts, 15, skip=2) # skip since the top tags are useless
+    viewer_main()
