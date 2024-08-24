@@ -102,6 +102,10 @@ class CategorizerUI:
     
     def categorize_all(self) -> None:
         for category in self.categories:
+            if not category:
+                self.logger.critical(
+                    f"Category '{category}' not found, continue to prevent infinite loop.")
+                continue
             self.categorize(category)
 
         
