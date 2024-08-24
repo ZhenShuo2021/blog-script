@@ -130,22 +130,21 @@ def generate_unique_path(path: Path) -> Path:
     return new_path
 
 
-def count_files(paths: Dict[str, Path]) -> Dict[str, int]:
-    file_counts = {}
+def count_files(paths: Dict[str, Path], dir: str="remote_path") -> Dict[str, int]:
+    file_count = 0
 
-    for key, path in paths.items():
+    for _, path in paths.items():
+        path = Path(path[dir])
         if not path.is_dir():
             logger.error(f"FileNotFoundError: {path} does not exist or not a directory.")
         logger.info(f"Counting number of files for {path}.")
 
-        file_count = 0
+        
         for file_path in path.rglob('*'):
             if file_path.is_file() and not is_system(file_path):
                 file_count += 1
 
-        file_counts[key] = file_count
-
-    return file_counts
+    return file_count
 
 
 class ConfigLoader:
