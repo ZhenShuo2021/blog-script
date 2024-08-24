@@ -1,102 +1,165 @@
+# CategorizerInterface 作為介面，所有子類別需要實作 categorize, prepare_folders 以及 categorize_helper
+# CategorizerUI 為使用者介面，使用者只需要輸入要分類的分類不需接觸底層架構。
 
-# ICategorizer同時作為介面以及父類別使用，所有子類別需要實作_prepare_folders, _process_files，最後呼叫共用的categorize完成分類。
-# FileCategorizer為工廠模式以及使用者介面，使用者只需要知道config以及選擇使用categorize或categorize_all其中一種，不需接觸底層架構。
-
-# !FIXME: When category w/ child or w/o tags, file_categorizer.categorize doesn't _pre_process. 
 # Todo: glob file type to conf.py
 # Todo: IPTC/EXIF writer
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Dict
+from typing import Tuple, Dict, Optional
 
 from src.logger import LogLevel, LogManager
-from utils.file_utils import ConfigLoader, safe_move, batch_move
-from utils.string_utils import is_system, is_english, is_japanese, split_tags
-
-# Some global constants
-others_name = "others"   # key name in config
-EN = "EN Artist"
-JP = "JP Artist"
-Other = "Other Artist"
+from utils.file_utils import ConfigLoader, safe_move, batch_move, move_all_tagged
+from utils.string_utils import is_system, is_english, is_japanese
 
 
-# Do not change unless necessary
-class ICategorizer(ABC):
-    def __init__(self, config_loader: ConfigLoader, logger):
+# Do NOT change unless necessary
+class CategorizerInterface(ABC):
+    others_name = "others"
+    EN = "EN Artist"
+    JP = "JP Artist"
+    Other = "Other Artist"
+
+    def __init__(self, config_loader: ConfigLoader, logger: LogManager):
+        """Abstract base class for categorizers.
+
+        Args:
+          config_loader: Instance of ConfigLoader to load configuration settings.
+          logger: Instance of LogManager to handle logging.
+        """
+        self.config_loader = config_loader
+        self.categorizes = config_loader.get_categories()
+        self.combined_paths = config_loader.get_combined_paths()
         self.tag_delimiter = config_loader.get_delimiters()
         self.logger = logger
 
-    def categorize(self, base_path: Path, tags: Dict[str, str]) -> None:
-        if base_path.is_file():
-            self.logger.error(f"A file named '{base_path.name}' already exists at this location.")
-            return
-        elif not base_path.exists():
-            base_path.mkdir(parents=True, exist_ok=True)
-            self.logger.info(f"Directory '{base_path}' created successfully.")
-        
-        self._prepare_folders(base_path, tags)
-        self._process_files(base_path, tags)
-
     @abstractmethod
-    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+    def categorize(self, category: str, preprocess: bool) -> None:
+        """ Main categorize function. """
         pass
 
     @abstractmethod
-    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
+    def prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+        """ Preprocessing for folders. For example, create an 'other' folder. """
+        pass
+
+    @abstractmethod
+    def categorize_helper(self, base_path: Path, tags: Dict[str, str]) -> None:
+        """ Helper function for categorize. """
         pass
 
 
-# Categorizers
-class TaggedCategorizer(ICategorizer):
-    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
-        self.other_folder = base_path / tags.get(others_name, "others")
-        self.other_folder.mkdir(exist_ok=True)
+class CategorizerFactory:
+    def __init__(self, config_loader: ConfigLoader, logger: LogManager):
+        """ Factory for choosing and instantiate categorizers. """
+        self.config_loader = config_loader
+        self.logger = logger
+        self.categorizers = {
+            "series": SeriesCategorizer(config_loader, logger),
+            "others": OthersCategorizer(config_loader, logger),
+            "custom": CustomCategorizer(config_loader, logger)
+        }
 
-    def _process_files(self, base_path: Path, tags: Dict[str, str]) -> None:
-        for file_path in base_path.rglob('*'):
-            if file_path.is_file() and not is_system(file_path.name):
-                file_name = file_path.stem
-                file_tags = split_tags(file_name, self.tag_delimiter)
-                self._move_tagged(base_path, file_path, file_tags, tags)
-
-    def _move_tagged(self, base_path: Path, file_path: Path, file_tags: List[str], tags: Dict[str, str]) -> None:
-        """
-        Search the first file_tags in tags and move to target_folder.
-
-        base_path: File destination. In configuration: BASE_PATHS / CATEGORIES.BlueArchive.remote
-        file_path: File source.
-        file_tags: Tags extract from file name.
-        tags: Special tags for file name. In configuration: CATEGORIES.BlueArchive.tags
-        """
-        target_folder = self._get_tagged_path(base_path, file_tags, tags)
-        if target_folder:
-            safe_move(file_path, target_folder / file_path.name)
+    def get_categorizer(self, category: str, categories: Dict[str, str]) -> Tuple[bool, Optional[CategorizerInterface]]:
+        # Dynamically choose the categorizer base on the key existence.
+        preprocess = "children" in categories.get(category, {}) or category == "Others"
+        if "children" in categories[category] or "tags" in categories[category]:
+            categorizer_type = "series"
+        elif category == "Others":
+            categorizer_type = "others"
+        elif "tags" not in categories[category]:
+            categorizer_type = None
         else:
-            safe_move(file_path, self.other_folder / file_path.name)
-
-    def _get_tagged_path(self, base_path: Path, file_tags: List[str], tags: Dict[str, str]) -> Path:
-        """ Return the target folder path based on the file tags. """
-        for tag in file_tags:
-            if tag in tags:
-                target_folder = Path(base_path) / tags[tag]
-                target_folder.mkdir(parents=True, exist_ok=True)
-                return target_folder
-        return None
+            categorizer_type = "custom"
+        
+        self.logger.debug(f"Processing category '{category}' with categorizer '{categorizer_type}'")
+        return preprocess, self.categorizers.get(categorizer_type)
 
 
-# Categorizers
-class ArtistCategorizer(ICategorizer):
-    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+class CategorizerUI:
+    def __init__(self, config_loader: ConfigLoader, logger: LogManager, factory: CategorizerFactory=None):
+        """ UI for categorizing files. """
+        self.logger = logger
+        base_path = config_loader.get_base_paths()
+        base_path_local = base_path.get("local_path")
+        if not Path(base_path_local).exists():
+            self.logger.error(f"Base path '{base_path_local}' does not exist.")
+            raise FileNotFoundError(f"Base path '{base_path_local}' does not exist.")
+        
+        self.config_loader = config_loader
+        self.combined_paths = config_loader.get_combined_paths()
+        self.categories = config_loader.get_categories()
+        self.factory = factory or CategorizerFactory(config_loader, logger)
+         
+    def categorize(self, category: str="") -> None:
+        if not category:
+            self.categorize_all()
+        else:
+            preprocess, categorizer = self.factory.get_categorizer(category, self.categories)
+            if not categorizer:
+                self.logger.debug(f"Skip categorize category '{category}'.")
+                return
+            categorizer.categorize(category, preprocess)
+    
+    def categorize_all(self) -> None:
+        for category in self.categories:
+            self.categorize(category)
+
+        
+
+class SeriesCategorizer(CategorizerInterface):
+    def categorize(self, category: str, preprocess: bool) -> None:
+        base_path = Path(self.combined_paths.get(category).get("local_path"))
+        tags = self.categorizes.get(category).get("tags")
+        if preprocess:
+            batch_move(base_path, self.categorizes.get(category).get("children"))
+
+        self.prepare_folders(base_path, tags)
+        self.categorize_helper(base_path, tags)
+
+    def prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
+        self.other_path = base_path / tags.get(self.others_name, "others")
+        self.other_path.mkdir(parents=True, exist_ok=True)
+
+    def categorize_helper(self, base_path: Path, tags: Dict[str, str]) -> None:
+        move_all_tagged(base_path, self.other_path, tags, self.tag_delimiter)
+
+
+class OthersCategorizer(CategorizerInterface):
+    """Categorize files that are not in any category.
+
+    By default, it categorizes files based on their names.
+    If the key "tags" exists, the categorization method is essentially the same as in SeriesCategorizer.
+    """
+    def categorize(self, category: str, preprocess: bool) -> None:
+        base_path = Path(self.combined_paths.get(category).get("local_path"))
+        tags = self.categorizes.get(category).get("tags")
+        if preprocess:
+            # For files doesn't belong to any category, preprocess is always true.
+            pass
+ 
+        if tags != None:
+            # Categorize files with tags if key "tags" exist.
+            self.other_path = base_path / tags.get(self.others_name, "others")
+            self.other_path.mkdir(exist_ok=True)
+            move_all_tagged(base_path.parent, self.other_path, tags, self.tag_delimiter)
+        else:
+            # If key "tags" not exist, categorize with categorize_helper
+            self.prepare_folders(base_path, tags)
+            self.categorize_helper(base_path, tags)
+ 
+    def prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
         self.folders = {
-            "EN": base_path / EN,
-            "JP": base_path / JP,
-            "Other": base_path / Other
+            "EN": base_path / self.EN,
+            "JP": base_path / self.JP,
+            "Other": base_path / self.Other
         }
         for folder in self.folders.values():
-            folder.mkdir(parents=True, exist_ok=True)
+            if not folder.is_dir():
+                folder.mkdir(parents=True, exist_ok=True)
+                self.logger.debug(f"Creates folder '{folder}'")
 
-    def _process_files(self, base_path: Path, tags: Dict[str, str] | None=None) -> None:
-        for file_path in base_path.iterdir():
+    def categorize_helper(self, base_path: Path, tags: Dict[str, str] | None=None) -> None:
+        for file_path in base_path.parent.iterdir():
             if file_path.is_file() and not is_system(file_path.name):
                 first_char = file_path.name[0]
                 if is_english(first_char):
@@ -108,107 +171,35 @@ class ArtistCategorizer(ICategorizer):
                 safe_move(file_path, folder_name / file_path.name)
 
 
-# Categorizers
-class CustomCategorizer(ICategorizer):
-    def _prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
-        # Some preprocess here
+class CustomCategorizer(CategorizerInterface):
+    def categorize(self, category: str, preprocess: bool) -> None:
+        pass
+    
+    def prepare_folders(self, base_path: Path, tags: Dict[str, str]) -> None:
         pass
 
-    def _process_files(self, base_path: Path, tags: Dict[str, str] | None=None) -> None:
-        # Main categorize algorithm here
+    def categorize_helper(self, base_path: Path, other_path:Path, tags: Dict[str, str]) -> None:
         pass
 
     def _helper_function(self) -> None:
-        # Add custom functions here
         pass
 
 
-# Main caller
-class FileCategorizer:
-    def __init__(self, config_loader: ConfigLoader, logger: LogManager):
-        self.config_loader = config_loader
-        self.combined_paths = config_loader.get_combined_paths()
-        self.logger = logger
-
-        # Function pointers for different categorizers
-        self.strategies = {
-            "character": TaggedCategorizer(self.config_loader, self.logger),
-            "artist": ArtistCategorizer(self.config_loader, self.logger),
-            "custom": CustomCategorizer(self.config_loader, self.logger)
-        }
-
-    def categorize(self, category: str, base_path: Path, tags: Dict[str, str]) -> None:
-        """Categorize files for single category (folder).
-
-        Usage: 
-        1. With tags  
-        file_categorizer.categorize("character", Path(combined_paths["IdolMaster"]['local']), categories["IdolMaster"]["tags"])
-        2. Without tags
-        - file_categorizer.categorize("artist", Path(combined_paths["others"]['local']), {})
-        
-        Args:
-          category: Working directory.
-          base_path: Download directory. Passed to ICategorizer.categorize.
-
-        Returns:
-          None
-        """
-        strategy = self.strategies.get(category)
-        if strategy:
-            strategy.categorize(base_path, tags)
-        else:
-            self.logger.error(f"Unknown category strategy: {category}")
-
-    def categorize_all(self):
-        """Categorize files for all category specified in config.
-
-        Loop over all categories specified in config and categorize them based on pre-defined tags.
-        """
-        categories = self.config_loader.get_categories()
-        for category in categories:
-            self._pre_process(categories, category)
-            self._categorize_tagged(categories, category)
-
-    def _pre_process(self, categories: str, category: Dict):
-        """Private helper function for categorization.
-        
-        Preprocess if "children" in category keys or category equals to "Others"
-        """
-        local_path = Path(self.combined_paths[category]["local"])
-        tags = categories[category].get("tags")
-        if "children" in categories[category]:
-            batch_move(Path(local_path), categories[category]["children"])
-        if "Others" == category:
-            batch_move(Path(self.combined_paths[category]["local"]), [])
-            if "tags" in categories[category]:
-                self.categorize("character", Path(local_path), tags)
-            else:
-                self.categorize("artist", Path(local_path), {})
-
-    def _categorize_tagged(self, categories: str, category: Dict):
-        """Private helper function for categorization.
-
-        Categorize all categories with "tags" key.
-        """
-        if "tags" in categories[category]:
-            local_path = Path(self.combined_paths[category]["local"])
-            tags = categories[category]["tags"]
-
-            self.categorize("character", local_path, tags)
-            self.logger.info(f"Categorized {category} based on tags")
-        else:
-            self.logger.debug(f"No tags found for {category}, skipping categorization")
-
-
 def main():
-    log_manager = LogManager(level=LogLevel.INFO, status="categorizer.py")
+    log_manager = LogManager(level=LogLevel.DEBUG, status="categorizer.py")
     logger = log_manager.get_logger()
 
     config_loader = ConfigLoader('config/config.toml')
-    config_loader.load_config()
-
-    file_categorizer = FileCategorizer(config_loader, logger)
-    file_categorizer.categorize_all()
+    
+    # Initialize categorizer
+    file_categorizer = CategorizerUI(config_loader, logger)
+    
+    # Start categorizing all categories
+    file_categorizer.categorize()
+    
+    # Or categorize specified category
+    # categories = list(config_loader.get_categories())
+    # file_categorizer.categorize(categories[-1])   # categorize the last category
 
 
 if __name__ == "__main__":

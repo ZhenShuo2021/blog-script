@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from src.categorizer import FileCategorizer
+from src.categorizer import CategorizerUI
 from utils import file_utils, string_utils
 from src.logger import LogLevel, LogManager
 
@@ -14,22 +14,17 @@ def main():
     logger = log_manager.get_logger()
 
     # Initialize config
-    log_manager = LogManager(level=LogLevel.INFO, status="categorizer.py")
-    logger = log_manager.get_logger()
-
     config_loader = file_utils.ConfigLoader('config/config.toml')
-    config_loader.load_config()
 
-    file_categorizer = FileCategorizer(config_loader, logger)
-    # file_categorizer.categorize_all()
-
-    # Or you can categorize a single category
-    # file_categorizer.categorize("character", 
-    #                             Path(config_loader.combined_paths["BlueArchive"]['local']), 
-    #                             config_loader.get_categories()["BlueArchive"]["tags"])
-    # file_categorizer.categorize("artist", 
-    #                             Path(config_loader.combined_paths["Others"]['local']), 
-    #                             {})
+    # Initialize categorizer
+    file_categorizer = CategorizerUI(config_loader, logger)
+    
+    # Start categorizing all categories
+    file_categorizer.categorize()
+    
+    # Or categorize specified category
+    # categories = list(config_loader.get_categories())
+    # file_categorizer.categorize(categories[1])   # categorize the last category
 
 
 if __name__ == "__main__":

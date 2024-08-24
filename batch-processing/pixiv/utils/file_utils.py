@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 
 import toml
 
-from utils.string_utils import is_system
+from utils.string_utils import is_system, is_empty, split_tags
 from src.logger import LogLevel, LogManager, logger
 log_manager = LogManager(level=LogLevel.INFO, status="file_utils.py")
 logger = log_manager.get_logger()
@@ -42,14 +42,16 @@ def safe_move(src: str | Path, dst: str | Path) -> None:
         if src_path.is_file():
             if dst_path.exists():
                 dst_path = generate_unique_path(dst_path)
-                logger.warning(f"Destination file already exists. It will be renamed to {dst_path}.")
+                logger.info(f"Destination file already exists. It will be renamed to {dst_path}.")
             shutil.move(str(src_path), str(dst_path))
+            logger.debug(f"Successfully move file to {dst_path.parent}.")
         elif src_path.is_dir():
             if dst_path.exists():
                 logger.warning(f"Destination directory '{dst_path}' already exists. It will be renamed.")
                 dst_path = generate_unique_path(dst_path)
             shutil.move(str(src_path), str(dst_path))
-        logger.debug(f"Moved file successfully:\nSrc: '{src_path}'\nDst: '{dst_path}'")
+            logger.debug(f"Successfully move folder to {dst_path.parent}.")
+
     except PermissionError:
         logger.error(f"Permission denied when moving '{src}' to '{dst}'.")
     except Exception as e:
@@ -57,25 +59,40 @@ def safe_move(src: str | Path, dst: str | Path) -> None:
 
 
 def batch_move(parent_folder: Path, child_folders: List[str] = []) -> None:
-    def walk_folder(walking_folder, parent_folder):
-        for file_path in walking_folder.iterdir():
-            if file_path.is_file() and not is_system(file_path.name):
-                safe_move(file_path, parent_folder / file_path.name)
+    """Move all files in "child_folders" to "parent_folder". 
 
+    By default, the child and the parent folders are in the same level:
+        ├── parent
+        ├── child_A
+        ├── child_B
+        └── child_C
+    If child_folders is an existing dir, directory move it to the parent folder.
+    """
     parent_folder.mkdir(exist_ok=True)
     base_folder = parent_folder.parent
 
-    if child_folders:
+    if isinstance(child_folders, list):
         for child_name in child_folders:
             child_path = base_folder / child_name
             if child_path.is_dir():
-                walk_folder(child_path, parent_folder)
-                shutil.rmtree(str(child_path))
-                logger.info(f"Batch move: deleting empty child folder {child_path}.")
+                safe_move_dir(child_path, parent_folder)
+                if is_empty(child_path):
+                    shutil.rmtree(str(child_path))
+                    logger.info(f"Deleting empty child folder '{child_path}'.")
+                else:
+                    logger.info(f"'{child_path}' is not empty; deleting process canceled.")
             else:
-                logger.debug(f"Batch move: child folder {child_path} not exist.")
-    else:
-        walk_folder(base_folder, parent_folder)
+                logger.debug(f"Child folder {child_path} not exist.")
+    
+    elif isinstance(child_folders, Path) and child_folders.is_dir():
+        safe_move_dir(base_folder, parent_folder)
+
+
+def safe_move_dir(src_folder: Path, dst_folder: Path) -> None:
+    """Move the files in first level of src_folder to the dst_folder"""
+    for file_path in src_folder.iterdir():
+        if file_path.is_file() and not is_system(file_path.name):
+            safe_move(file_path, dst_folder / file_path.name)
 
 
 def merge_path(data: Dict[str, Any]) -> Dict[str, Dict[str, Path]]:
@@ -94,6 +111,40 @@ def merge_path(data: Dict[str, Any]) -> Dict[str, Dict[str, Path]]:
             merged_paths[base_key][category_key] = full_path
 
     return merged_paths
+
+
+def move_all_tagged(base_path: Path, other_path: Path, tags: Dict[str, str], tag_delimiter: dict) -> None:
+    """Move tagged file for all files."""
+    for file_path in base_path.rglob('*'):
+        if file_path.is_file() and not is_system(file_path.name):
+            file_name = file_path.stem
+            file_tags = split_tags(file_name, tag_delimiter)
+            move_tagged(base_path, other_path, file_path, file_tags, tags)
+
+
+def move_tagged(base_path: Path, other_path: Path, file_path: Path, file_tags: List[str], tags: Dict[str, str]) -> None:
+    """Move tagged file for a single file. Search the first file tag in tags and move it to target_folder.
+
+    base_path: File destination. In configuration: BASE_PATHS / CATEGORIES.BlueArchive.remote
+    other_path: File destination for which is not in any tag.
+    file_path: File source.
+    file_tags: Tags extract from file name.
+    tags: Special tags for file name. In configuration: CATEGORIES.BlueArchive.tags
+    """
+    target_folder = get_tagged_path(base_path, file_tags, tags)
+    if target_folder:
+        safe_move(file_path, target_folder / file_path.name)
+    else:
+        safe_move(file_path, other_path / file_path.name)
+
+def get_tagged_path(base_path: Path, file_tags: List[str], tags: Dict[str, str]) -> Path:
+    """ Return the target folder path based on the file tags. """
+    for tag in file_tags:
+        if tag in tags:
+            target_folder = Path(base_path) / tags[tag]
+            target_folder.mkdir(parents=True, exist_ok=True)
+            return target_folder
+    return None
 
 
 def count_files(paths: Dict[str, Path]) -> Dict[str, int]:
@@ -124,7 +175,7 @@ class ConfigLoader:
         try:
             with open(self.config_path, 'r') as file:
                 self.config = (toml.load(file))
-                logger.info("Configuration loaded successfully.")
+                logger.debug("Configuration loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
             raise
@@ -154,8 +205,8 @@ class ConfigLoader:
             local_combined = os.path.join(base_paths['local_path'], data['local_path'])
             remote_combined = os.path.join(base_paths['remote_path'], data['remote_path'])
             combined_paths[category] = {
-                'local': local_combined,
-                'remote': remote_combined,
+                'local_path': local_combined,
+                'remote_path': remote_combined,
             }
         return combined_paths
 

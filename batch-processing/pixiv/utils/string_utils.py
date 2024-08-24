@@ -1,19 +1,23 @@
-# %%
 from pathlib import Path
 import string
 
-# %%
 HIRAGANA_START = '\u3040'
 HIRAGANA_END = '\u309f'
 KATAKANA_START = '\u30a0'
 KATAKANA_END = '\u30ff'
 
 
-# %%
 def is_system(file_path: str) -> bool:
     """Check if the file is a common system file based on its name."""
     common_system_files = {'.DS_Store', 'Thumbs.db', 'desktop.ini'}
     return Path(file_path).name in common_system_files
+
+def is_empty(file_path: Path) -> bool:
+    # Check if any entry is a file that's not a system file or a directory that is not empty
+    return not any(
+        entry.is_dir() or not is_system(entry.name)
+        for entry in file_path.iterdir()
+    )
 
 def is_english(character: str) -> bool:
     return character in string.ascii_letters

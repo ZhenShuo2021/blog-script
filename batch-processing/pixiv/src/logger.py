@@ -110,5 +110,5 @@ if __name__ == "__main__":
     logger.warning("Warning message")
     logger.critical("Critical message")
 
-log_manager = LogManager(name="MyApp", level=LogLevel.DEBUG, status="Unknown Process")
+log_manager = LogManager(name="MyApp", level=LogLevel.DEBUG, status="Unknown_Process")
 logger = log_manager.get_logger()
