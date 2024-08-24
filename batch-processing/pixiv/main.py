@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
-from src.categorizer import CategorizerUI
+import src
+import src.categorizer
+import src.synchronizer
 from utils import file_utils, string_utils
 from src.logger import LogLevel, LogManager
 
@@ -9,23 +11,27 @@ os.chdir(script_dir)
 
 
 def main():
-    # Initialize logger
-    log_manager = LogManager(level=LogLevel.INFO, status="main.py")
+    # Initialize
+    log_manager = LogManager(level=LogLevel.DEBUG, status="main.py")
     logger = log_manager.get_logger()
-
-    # Initialize config
     config_loader = file_utils.ConfigLoader('config/config.toml')
-
-    # Initialize categorizer
-    file_categorizer = CategorizerUI(config_loader, logger)
     
     # Start categorizing all categories
-    file_categorizer.categorize()
-    
-    # Or categorize specified category
+    file_categorizer = src.categorizer.CategorizerUI(config_loader, logger)
+    file_categorizer.categorize() 
+    # Or categorize specific category
     # categories = list(config_loader.get_categories())
     # file_categorizer.categorize(categories[1])   # categorize the last category
 
+    # Sync file to remote storage
+    log_dir = Path(script_dir).parent / Path("data")
+    file_syncer = src.synchronizer.FileSyncer(config_loader, log_dir, logger).sync_folders()
+    # Or sync specific category
+    # combined_paths = config_loader.get_combined_paths()
+    # file_syncer = src.synchronizer.FileSyncer(config_loader, log_dir, logger)
+    # file_syncer.sync_folders(combined_paths["IdolMaster"]["local_path"], combined_paths["IdolMaster"]["remote_path"])
+    # src.synchronizer.LogMerger(log_dir).merge_logs()
+    
 
 if __name__ == "__main__":
     main()

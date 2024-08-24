@@ -3,33 +3,58 @@
 import os
 import subprocess
 from datetime import datetime
-from typing import Optional
+from pathlib import Path
+
+from utils.file_utils import ConfigLoader
+from src.logger import LogLevel, LogManager, logger
+
+TEMP_NAME = ".logfile"
+
 
 class FileSyncer:
-    def __init__(self, log_dir: str):
+    def __init__(self, config_loader: ConfigLoader, log_dir: Path, logger: LogManager):
+        self.logger = logger
         self.log_dir = log_dir
-        os.makedirs(self.log_dir, exist_ok=True)
+        self.config_loader = config_loader
 
-    def sync_folders(self, source: str, destination: str):
-        self._ensure_directory_exists(source)
-        self._ensure_directory_exists(destination)
+    def sync_folders(self, src: str="", dst: str="") -> None:
+        if not src:
+            self.sync_folders_all()
+        else:
+            src, dst = Path(src), Path(dst)
+            if not src.is_dir():
+                self.logger.critical(f"Local folder '{src}' not exist, terminate")
+                raise FileNotFoundError
+            if not dst.is_dir():
+                self.logger.debug(f"Create nonexisting target folder '{str(self.log_dir)}'.")
+                dst.mkdir(parents=True, exist_ok=True)
 
-        log_file = self._get_log_file(source)
-        self._run_rsync(source, destination, log_file)
+            log_path = self._log_name(self.log_dir, src)
+            self._run_rsync(src, dst, log_path)
 
-    def _ensure_directory_exists(self, path: str):
-        if not os.path.exists(path):
-            print(f"警告：目標位置 '{path}' 不存在，已自動新建")
-            os.makedirs(path)
+    def sync_folders_all(self):
+        combined_paths = self.config_loader.get_combined_paths()
+        for key in combined_paths:
+            if not combined_paths[key]["local_path"]:
+                self.logger.critical(
+                    f"Local path of '{combined_paths[key]}' not found, continue to prevent infinite loop.")
+                continue
+            self.sync_folders(combined_paths[key]["local_path"], combined_paths[key]["remote_path"])
+        log_merger = LogMerger(self.log_dir)
+        log_merger.merge_logs()
 
-    def _get_log_file(self, source: str) -> str:
-        return os.path.join(self.log_dir, f'{os.path.basename(source)}.log')
+    def _log_name(self, log_dir: Path, src: Path) -> str:
+        if not log_dir.is_dir():
+            log_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.debug(f"Creates folder '{log_dir}'")
+        return os.path.join(str(log_dir), f'{os.path.basename(src)}{TEMP_NAME}')
 
-    def _run_rsync(self, source: str, destination: str, log_file: str):
+    def _run_rsync(self, src: str, dst: str, log_path: str) -> None:
         command = [
-            'rsync', '-aq', '--ignore-existing', '--remove-source-files', '--progress',
-            f'--log-file={log_file}', f'{source}/', f'{destination}/'
+            'rsync', '-aq', '--ignore-existing', '--progress',
+            f'--log-file={log_path}', f'{src}/', f'{dst}/'
         ]
+        self.logger.debug(f"Syncing '{src}' to '{dst}'")
         subprocess.run(command, check=True)
 
 class LogMerger:
@@ -37,8 +62,8 @@ class LogMerger:
         self.log_dir = log_dir
 
     def merge_logs(self):
-        output_file = f"{self.log_dir}/rsync_log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
-        log_files = [f for f in os.listdir(self.log_dir) if f.endswith('.log')]
+        output_file = f"{self.log_dir}/rsync_log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+        log_files = [f for f in os.listdir(self.log_dir) if f.endswith(TEMP_NAME)]
 
         if not log_files:
             print("No log files found in the directory.")
@@ -60,23 +85,18 @@ class LogMerger:
         return merged_content
 
 if __name__ == "__main__":
-    from utils.file_utils import PathManager, ConfigLoader
-    from src.logger import LogLevel, LogManager, logger
-    log_manager = LogManager(level=LogLevel.DEBUG)
+    log_manager = LogManager(level=LogLevel.DEBUG, status="synchronizer.py")
     logger = log_manager.get_logger()
 
-    config_loader = ConfigLoader('data/config.toml')
-    config_loader.load_config()
-    tag_delimiters = config_loader.get_delimiters()
-
-    path_manager = PathManager(config_loader)
-    combined_paths = path_manager.get_combined_paths()
+    config_loader = ConfigLoader('config/config.toml')
+    combined_paths = config_loader.get_combined_paths()
     
-    log_dir = os.path.join(os.getcwd(), 'gen')
-    file_syncer = FileSyncer(log_dir)
+    script_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+    log_dir = script_dir.parent / Path("data")
+    file_syncer = FileSyncer(config_loader, log_dir, logger)
 
     for key in combined_paths:
-        file_syncer.sync_folders(combined_paths[key]["local"], combined_paths[key]["remote"])
+        file_syncer.sync_folders(combined_paths[key]["local_path"], combined_paths[key]["remote_path"])
 
     log_merger = LogMerger(log_dir)
     log_merger.merge_logs()
