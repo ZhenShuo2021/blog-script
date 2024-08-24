@@ -12,19 +12,6 @@ from src.logger import LogLevel, LogManager, logger
 log_manager = LogManager(level=LogLevel.INFO, status="file_utils.py")
 logger = log_manager.get_logger()
 
-def generate_unique_path(path: Path) -> Path:
-    counter = 1
-    stem = path.stem
-    suffix = path.suffix if path.is_file() else ''
-    parent = path.parent
-
-    new_path = parent / f"{stem}-{counter}{suffix}"
-    while new_path.exists():
-        counter += 1
-        new_path = parent / f"{stem}-{counter}{suffix}"
-
-    return new_path
-
 
 def safe_move(src: str | Path, dst: str | Path) -> None:
     if src == dst:
@@ -58,6 +45,13 @@ def safe_move(src: str | Path, dst: str | Path) -> None:
         logger.error(f"Error occurred while moving '{src}' to '{dst}': {e}")
 
 
+def safe_move_dir(src_folder: Path, dst_folder: Path) -> None:
+    """Move the files in first level of src_folder to the dst_folder"""
+    for file_path in src_folder.iterdir():
+        if file_path.is_file() and not is_system(file_path.name):
+            safe_move(file_path, dst_folder / file_path.name)
+
+
 def batch_move(parent_folder: Path, child_folders: List[str] = []) -> None:
     """Move all files in "child_folders" to "parent_folder". 
 
@@ -88,40 +82,6 @@ def batch_move(parent_folder: Path, child_folders: List[str] = []) -> None:
         safe_move_dir(base_folder, parent_folder)
 
 
-def safe_move_dir(src_folder: Path, dst_folder: Path) -> None:
-    """Move the files in first level of src_folder to the dst_folder"""
-    for file_path in src_folder.iterdir():
-        if file_path.is_file() and not is_system(file_path.name):
-            safe_move(file_path, dst_folder / file_path.name)
-
-
-def merge_path(data: Dict[str, Any]) -> Dict[str, Dict[str, Path]]:
-    base_paths = data.get('BASE_PATHS', {})
-    categories = data.get('CATEGORIES', {})
-
-    merged_paths = {}
-
-    for base_key, base_path_str in base_paths.items():
-        base_path = Path(base_path_str)
-        merged_paths[base_key] = {}
-
-        for category_key, category_names in categories.items():
-            category_name = category_names[0] if base_key == "local" else category_names[1]
-            full_path = base_path / category_name
-            merged_paths[base_key][category_key] = full_path
-
-    return merged_paths
-
-
-def move_all_tagged(base_path: Path, other_path: Path, tags: Dict[str, str], tag_delimiter: dict) -> None:
-    """Move tagged file for all files."""
-    for file_path in base_path.rglob('*'):
-        if file_path.is_file() and not is_system(file_path.name):
-            file_name = file_path.stem
-            file_tags = split_tags(file_name, tag_delimiter)
-            move_tagged(base_path, other_path, file_path, file_tags, tags)
-
-
 def move_tagged(base_path: Path, other_path: Path, file_path: Path, file_tags: List[str], tags: Dict[str, str]) -> None:
     """Move tagged file for a single file. Search the first file tag in tags and move it to target_folder.
 
@@ -137,6 +97,7 @@ def move_tagged(base_path: Path, other_path: Path, file_path: Path, file_tags: L
     else:
         safe_move(file_path, other_path / file_path.name)
 
+
 def get_tagged_path(base_path: Path, file_tags: List[str], tags: Dict[str, str]) -> Path:
     """ Return the target folder path based on the file tags. """
     for tag in file_tags:
@@ -145,6 +106,28 @@ def get_tagged_path(base_path: Path, file_tags: List[str], tags: Dict[str, str])
             target_folder.mkdir(parents=True, exist_ok=True)
             return target_folder
     return None
+
+def move_all_tagged(base_path: Path, other_path: Path, tags: Dict[str, str], tag_delimiter: dict) -> None:
+    """Move tagged file for all files."""
+    for file_path in base_path.rglob('*'):
+        if file_path.is_file() and not is_system(file_path.name):
+            file_name = file_path.stem
+            file_tags = split_tags(file_name, tag_delimiter)
+            move_tagged(base_path, other_path, file_path, file_tags, tags)
+
+
+def generate_unique_path(path: Path) -> Path:
+    counter = 1
+    stem = path.stem
+    suffix = path.suffix if path.is_file() else ''
+    parent = path.parent
+
+    new_path = parent / f"{stem}-{counter}{suffix}"
+    while new_path.exists():
+        counter += 1
+        new_path = parent / f"{stem}-{counter}{suffix}"
+
+    return new_path
 
 
 def count_files(paths: Dict[str, Path]) -> Dict[str, int]:
