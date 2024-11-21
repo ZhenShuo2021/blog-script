@@ -46,7 +46,7 @@ class AsyncTaskManager:
 
     async def run_task(self, func, *args, **kwargs):
         print(f"Task {func.__name__} with args {args} and kwargs {kwargs} start running!")
-        print_thread_id(is_main=False)
+        print_thread_id(is_main_thread=False)
         result = await func(*args, **kwargs)
         self.result_queue.put(result)
         return result
@@ -72,7 +72,7 @@ class AsyncTaskManager:
 
     def _start_event_loop(self):
         self.loop = asyncio.new_event_loop()
-        print_thread_id(is_main=True)
+        print_thread_id(is_main_thread=True)
         asyncio.set_event_loop(self.loop)
 
         try:
