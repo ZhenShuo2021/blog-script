@@ -110,7 +110,7 @@ class AsyncService:
                 f"Task {task.func.__name__} with args {task.args} and kwargs {task.kwargs} start running!"
             )
             try:
-                result = await task.func(*task.args, **task.kwargs)
+                result = await task.func(*task.args, **task.kwargs)  # type: ignore
                 with self._lock:
                     self.results[task.task_id] = result
                 return result
