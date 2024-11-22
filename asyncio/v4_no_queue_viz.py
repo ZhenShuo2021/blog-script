@@ -1,18 +1,15 @@
 # trace compute time with viztracer, no lock.
 import asyncio
 import threading
-import time
 from dataclasses import dataclass
 from logging import Logger, getLogger
 from typing import Any, Dict, Tuple, Callable, Optional
 
-from help import BLOCK_MSG, NOT_BLOCK_MSG, io_task, print_thread_id, timer
+from help import io_task, print_thread_id, timer
 
 
 @dataclass
 class Task:
-    """Unified task container for both threading and async services."""
-
     task_id: str
     func: Callable[..., Any]
     args: Tuple[Any, ...] = ()
@@ -36,53 +33,20 @@ class AsyncService:
         # 儲存結果
         self.results: Dict[str, Any] = {}
 
-    async def _run_task(self, task: Task) -> None:
-        async with self.sem:
-            print(
-                f"Task {task.func.__name__} with args {task.args} and kwargs {task.kwargs} start running!"
-            )
-            try:
-                result = await task.func(*task.args, **task.kwargs)
-                self.results[task.task_id] = result
-            except Exception as e:
-                self.logger.error(f"Error processing task {task.task_id}: {e}")
-                self.results[task.task_id] = None
-            finally:
-                self._running_tasks -= 1
-
-    def _start_event_loop(self) -> None:
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        self._loop_ready.set()
-        self.loop.run_forever()
-        try:
-            self.loop.close()
-        finally:
-            self.loop = None
-            self._loop_ready.clear()
-
-    def _ensure_thread_running(self) -> None:
-        if self.thread is None or not self.thread.is_alive():
-            self._loop_ready.clear()
-            self.thread = threading.Thread(target=self._start_event_loop)
-            self.thread.start()
-            self._loop_ready.wait()  # 等待事件迴圈啟動
-
-    def add_task(self, task: Task) -> None:
-        self._ensure_thread_running()
+    def submit_task(self, task: Task) -> None:
+        self._ensure_thread_active()
 
         self._running_tasks += 1
-        assert self.loop is not None
-        asyncio.run_coroutine_threadsafe(self._run_task(task), self.loop)
+        asyncio.run_coroutine_threadsafe(self._schedule_tasks(task), self.loop)
 
-    def add_tasks(self, tasks: list[Task]) -> None:
+    def submit_tasks(self, tasks: list[Task]) -> None:
         for task in tasks:
-            self.add_task(task)
+            self.submit_task(task)
 
-    def get_result(self, task_id: str) -> Optional[Any]:
+    def fetch_result(self, task_id: str) -> Optional[Any]:
         return self.results.pop(task_id, None)
 
-    def get_results(self, max_results: int = 0) -> Dict[str, Any]:
+    def fetch_results(self, max_results: int = 0) -> Dict[str, Any]:
         if max_results <= 0:
             results_to_return = self.results.copy()
             self.results.clear()
@@ -91,7 +55,7 @@ class AsyncService:
         keys = list(self.results.keys())[:max_results]
         return {key: self.results.pop(key) for key in keys}
 
-    def stop(self, timeout: Optional[float] = None) -> None:
+    def shutdown(self, timeout: Optional[float] = None) -> None:
         if self.thread is None or self.loop is None:
             return
 
@@ -106,6 +70,39 @@ class AsyncService:
         self.thread = None
         print(f"===thread cleared! result: {self.thread}===\n")
 
+    def _ensure_thread_active(self) -> None:
+        if self.thread is None or not self.thread.is_alive():
+            self._loop_ready.clear()
+            self.thread = threading.Thread(target=self._start_event_loop)
+            self.thread.start()
+            self._loop_ready.wait()  # 等待事件迴圈啟動
+
+    def _start_event_loop(self) -> None:
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self._loop_ready.set()
+        self.loop.run_forever()
+        try:
+            self.loop.close()
+        finally:
+            self.loop = None
+            self._loop_ready.clear()
+
+    async def _schedule_tasks(self, task: Task) -> None:
+        async with self.sem:
+            print(
+                f"Task {task.func.__name__} with args {task.args} and kwargs {task.kwargs} start running!"
+            )
+            try:
+                result = await task.func(*task.args, **task.kwargs)
+                self.results[task.task_id] = result
+            except Exception as e:
+                self.logger.error(f"Error processing task {task.task_id}: {e}")
+                self.results[task.task_id] = None
+            finally:
+                self._running_tasks -= 1
+
+
 
 @timer
 def test() -> None:
@@ -118,16 +115,16 @@ def test() -> None:
 
     for group in task_groups[:-1]:
         tasks = [Task(task[1], io_task, task) for task in group]
-        manager.add_tasks(tasks)
+        manager.submit_tasks(tasks)
 
-    results = manager.get_results()
+    results = manager.fetch_results()
     for result in results:
         print(result)
 
-    manager.stop()
+    manager.shutdown()
 
     for _ in range(3):
-        results = manager.get_results()
+        results = manager.fetch_results()
         for result in results:
             print(result)
 
