@@ -16,7 +16,7 @@ def timer(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(*args: Tuple[Any, Any], **kwargs: Dict[Any, Any]) -> Any:
         t = time.time()
         result = func(*args, **kwargs)
-        print(f"program time: {(time.time() - t):.2f}")
+        print(f"program time: {(time.time() - t):.6f}")
         return result
 
     return wrapper
