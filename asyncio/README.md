@@ -1,12 +1,12 @@
-# Asyncio test
+# Asyncio Test  
 
-1. async_future.py: basic usage of async future 
-2. help: helper function for tests
-3. v0_bad: i don't know what i'm writting
-4. v1_basic: basic attempt for running a event loop in a sub thread
-5. v2_no_lock: no lock attempt
-6. v3_queue: use a queue
-7. v4_no_queue: remove queue, only Semaphore, use run_coroutine_threadsafe
-8. v3_queue_viz/v4_no_queue_viz: test files designed for use with VizTracer
+- async_future.py: basic usage of an async future  
+- help: helper functions for tests  
+- v0_bad: my first bad attempt, just skip it   
+- v1_basic: A basic attempt to run an event loop in a sub-thread  
+- v2_no_lock: An attempt to remove locks  
+- v3_queue: Use a queue for thread-safe operations  
+- v4_no_queue: Removes the queue, only rely on a semaphore and run_coroutine_threadsafe  
+- v3_queue_viz/v4_no_queue_viz: Test files for use with VizTracer  
 
-Files prior to v3 can be ignored.
+Files before v3_queue can be ignored.
