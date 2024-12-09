@@ -51,7 +51,7 @@ class AsyncTaskManager:
         self.result_queue.put(result)
         return result
 
-    def submit_task(self, func, *args, **kwargs):
+    def add_task(self, func, *args, **kwargs):
         self.task_queue.put((func, args, kwargs))
         self._check_thread()
 
@@ -98,17 +98,17 @@ def test():
 
     manager = AsyncTaskManager(maxsize=5)
 
-    manager.submit_task(io_task, 1, "A1")
-    manager.submit_task(io_task, 2, "A2")
-    manager.submit_task(io_task, 3, "A3")
+    manager.add_task(io_task, 1, "A1")
+    manager.add_task(io_task, 2, "A2")
+    manager.add_task(io_task, 3, "A3")
 
-    manager.submit_task(io_task, 3, "B1")
-    manager.submit_task(io_task, 4, "B2")
-    manager.submit_task(io_task, 5, "B3")
+    manager.add_task(io_task, 3, "B1")
+    manager.add_task(io_task, 4, "B2")
+    manager.add_task(io_task, 5, "B3")
 
-    manager.submit_task(io_task, 3, "C1")
-    manager.submit_task(io_task, 4, "C2")
-    manager.submit_task(io_task, 5, "C3")
+    manager.add_task(io_task, 3, "C1")
+    manager.add_task(io_task, 4, "C2")
+    manager.add_task(io_task, 5, "C3")
 
     print(NOT_BLOCK_MSG)
 
@@ -131,9 +131,9 @@ def test():
         print(result)
 
     # 可以在thread關閉後再次建立工作
-    manager.submit_task(io_task, 1, "D1")
-    manager.submit_task(io_task, 2, "D2")
-    manager.submit_task(io_task, 3, "D3")
+    manager.add_task(io_task, 1, "D1")
+    manager.add_task(io_task, 2, "D2")
+    manager.add_task(io_task, 3, "D3")
 
     manager.close_thread()
     results = manager.get_result()

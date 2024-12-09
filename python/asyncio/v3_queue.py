@@ -1,11 +1,12 @@
 import asyncio
 import queue
 import threading
+import time
 from dataclasses import dataclass
 from logging import Logger, getLogger
 from typing import Any, Dict, Tuple, Callable, Optional
 
-from help import io_task, print_thread_id, timer
+from help import BLOCK_MSG, NOT_BLOCK_MSG, io_task, print_thread_id, timer
 
 
 @dataclass
@@ -37,11 +38,11 @@ class AsyncService:
         self.current_tasks: list[asyncio.Task[Any]] = []
         self.results: Dict[str, Any] = {}
 
-    def submit_task(self, task: Task) -> None:
+    def add_task(self, task: Task) -> None:
         self.task_queue.put(task)
         self._ensure_thread_active()
 
-    def submit_tasks(self, tasks: list[Task]) -> None:
+    def add_tasks(self, tasks: list[Task]) -> None:
         for task in tasks:
             self.task_queue.put(task)
         self._ensure_thread_active()
@@ -120,38 +121,50 @@ class AsyncService:
                     self.results[task.task_id] = None
 
 
-
 @timer
 def test() -> None:
     print_thread_id()
     logger = getLogger()
-    task_template = [(0, "D1"), (0, "D2"), (0, "D3")]
-    task_groups = [task_template for _ in range(300)]
+    task_groups = [
+        [(1, "A1"), (2, "A2"), (3, "A3")],
+        [(3, "B1"), (4, "B2"), (5, "B3")],
+        [(3, "C1"), (4, "C2"), (5, "C3")],
+        [(1, "D1"), (2, "D2"), (3, "D3")],
+    ]
 
     manager = AsyncService(logger, max_workers=5)
 
+    # 新增第一批任務
     for group in task_groups[:-1]:
         tasks = [Task(task[1], io_task, task) for task in group]
-        manager.submit_tasks(tasks)
+        manager.add_tasks(tasks)
 
+    print(NOT_BLOCK_MSG)
+
+    # 模擬主執行緒工作需要 2.5 秒，在程式中間取得結果
+    # 會顯示 A1/A2 的結果，因為它們在 2.5 秒後完成
+    time.sleep(2.5)
     results = manager.fetch_results()
+    print(NOT_BLOCK_MSG, "(2s waiting for main thread itself)")  # not blocked
     for result in results:
         print(result)
 
+    # 等待子執行緒結束，造成阻塞
     manager.shutdown()
+    print(BLOCK_MSG)
 
     for _ in range(3):
         results = manager.fetch_results()
         for result in results:
             print(result)
 
-    # 在thread關閉後提交第二批任務
-    # tasks = [Task(task[1], io_task, task) for task in task_groups[-1]]
-    # manager.add_tasks(tasks)
-    # manager.stop()
-    # results = manager.get_results()
-    # for result in results:
-    #     print(result)
+    # 在thread關閉後新增第二批任務
+    tasks = [Task(task[1], io_task, task) for task in task_groups[-1]]
+    manager.add_tasks(tasks)
+    manager.shutdown()
+    results = manager.fetch_results()
+    for result in results:
+        print(result)
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ class AsyncService:
         # 儲存結果
         self.results: Dict[str, Any] = {}
 
-    def submit_task(self, task: Task) -> None:
+    def add_task(self, task: Task) -> None:
         self._ensure_thread_active()
 
         with self._lock:
@@ -43,9 +43,9 @@ class AsyncService:
             assert self.loop is not None
             asyncio.run_coroutine_threadsafe(self._schedule_tasks(task), self.loop)
 
-    def submit_tasks(self, tasks: list[Task]) -> None:
+    def add_tasks(self, tasks: list[Task]) -> None:
         for task in tasks:
-            self.submit_task(task)
+            self.add_task(task)
 
     def fetch_result(self, task_id: str) -> Optional[Any]:
         with self._lock:
@@ -127,10 +127,10 @@ def test() -> None:
 
     manager = AsyncService(logger, max_workers=5)
 
-    # 提交第一批任務，使用新的add_tasks方法
+    # 新增第一批任務
     for group in task_groups[:-1]:
         tasks = [Task(task[1], io_task, task) for task in group]
-        manager.submit_tasks(tasks)
+        manager.add_tasks(tasks)
 
     print(NOT_BLOCK_MSG)
 
@@ -151,9 +151,9 @@ def test() -> None:
         for result in results:
             print(result)
 
-    # 在thread關閉後提交第二批任務
+    # 在thread關閉後新增第二批任務
     tasks = [Task(task[1], io_task, task) for task in task_groups[-1]]
-    manager.submit_tasks(tasks)
+    manager.add_tasks(tasks)
     manager.shutdown()
     results = manager.fetch_results()
     for result in results:

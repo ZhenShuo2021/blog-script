@@ -33,15 +33,15 @@ class AsyncService:
         # 儲存結果
         self.results: Dict[str, Any] = {}
 
-    def submit_task(self, task: Task) -> None:
+    def add_task(self, task: Task) -> None:
         self._ensure_thread_active()
 
         self._running_tasks += 1
         asyncio.run_coroutine_threadsafe(self._schedule_tasks(task), self.loop)
 
-    def submit_tasks(self, tasks: list[Task]) -> None:
+    def add_tasks(self, tasks: list[Task]) -> None:
         for task in tasks:
-            self.submit_task(task)
+            self.add_task(task)
 
     def fetch_result(self, task_id: str) -> Optional[Any]:
         return self.results.pop(task_id, None)
@@ -115,7 +115,7 @@ def test() -> None:
 
     for group in task_groups[:-1]:
         tasks = [Task(task[1], io_task, task) for task in group]
-        manager.submit_tasks(tasks)
+        manager.add_tasks(tasks)
 
     results = manager.fetch_results()
     for result in results:
