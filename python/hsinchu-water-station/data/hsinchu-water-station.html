@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+<style>
+.leaflet-popup-content-wrapper {
+    padding: 0;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.leaflet-popup-content {
+    padding-left: 4px;
+    margin: 0;
+    width: auto !important;
+    text-align: center;
+}
+.leaflet-popup-tip {
+    background: white;
+}
+.station-info {
+    font-family: 'Microsoft JhengHei', sans-serif;
+    width: 250px;
+}
+.station-info h4 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #4299e1;
+}
+.station-info table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.6;
+    margin: auto;
+}
+.station-info td {
+    padding: 6px 0;
+    vertical-align: top;
+}
+.station-info td:first-child {
+    padding-left: 1em;
+    min-width: 80px;
+    color: #666;
+    font-weight: 500;
+    text-align: left;
+}
+.station-info td:last-child {
+    color: #333;
+    text-align: left;
+}
+.copy-button {
+    margin-top: 10px;
+    background-color: #4299e1;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: background-color 0.3s;
+}
+.copy-button:hover {
+    background-color: #3271b0;
+}
+.copy-toast {
+    display: none;
+    position: fixed;
+    top: 7%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 1000;
+    animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    15% { opacity: 1; transform: translate(-50%, 0); }
+    85% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+</style>
+    
+<script>
+function createToastIfNotExists() {
+    if (!document.getElementById('copy-toast')) {
+        const toast = document.createElement('div');
+        toast.id = 'copy-toast';
+        toast.className = 'copy-toast';
+        toast.textContent = '地址已複製';
+        document.body.appendChild(toast);
+    }
+}
+
+function showToast() {
+    createToastIfNotExists();
+    const toast = document.getElementById('copy-toast');
+
+    // 重置動畫
+    toast.style.animation = 'none';
+    toast.offsetHeight; // 觸發 reflow
+    toast.style.animation = 'fadeInOut 2s ease-in-out';
+
+    toast.style.display = 'block';
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 2000);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text)
+        .then(() => {
+            showToast();
+        })
+        .catch(err => {
+            console.error('複製失敗:', err);
+            alert('複製失敗，請手動複製');
+        });
+}
+
+document.addEventListener('DOMContentLoaded', createToastIfNotExists);
+</script>
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_9c95838c85f6415619a051cbdf3afc99 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_9c95838c85f6415619a051cbdf3afc99" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_9c95838c85f6415619a051cbdf3afc99 = L.map(
+                "map_9c95838c85f6415619a051cbdf3afc99",
+                {
+                    center: [24.8041800737436, 120.97054960325579],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 13,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_51a497b638eb4a847bef9441964c3712 = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_51a497b638eb4a847bef9441964c3712.addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+            var marker_6e7ffceb86c40ee78f979054683592b7 = L.marker(
+                [24.8177287, 120.9740304],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_db771271e1383a6c76684b2c4fa09506 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_5fe82d78ae6fa227dd46094c1ff70109 = $(`<div id="html_5fe82d78ae6fa227dd46094c1ff70109" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>水源加水站-新竹光華1店</h4>     <table>         <tr>             <td>公司名稱</td>             <td>冠銓淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市光華北街13號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市光華北街13號')">複製地址</div> </div> </div>`)[0];
+                popup_db771271e1383a6c76684b2c4fa09506.setContent(html_5fe82d78ae6fa227dd46094c1ff70109);
+            
+        
+
+        marker_6e7ffceb86c40ee78f979054683592b7.bindPopup(popup_db771271e1383a6c76684b2c4fa09506)
+        ;
+
+        
+    
+    
+            marker_6e7ffceb86c40ee78f979054683592b7.bindTooltip(
+                `<div>
+                     水源加水站-新竹光華1店
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_41235fa1441cf8aa9fd3aa9fb101ecaf = L.marker(
+                [24.8116384, 120.9560877],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_f8dd8a3a4cbd78812448966e3304b86a = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_c6357cc3853bb8c9d1fcc8a65d3f0cbe = $(`<div id="html_c6357cc3853bb8c9d1fcc8a65d3f0cbe" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優福加水站新竹西大站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>冠銓淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市西大路864號旁</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市西大路864號旁')">複製地址</div> </div> </div>`)[0];
+                popup_f8dd8a3a4cbd78812448966e3304b86a.setContent(html_c6357cc3853bb8c9d1fcc8a65d3f0cbe);
+            
+        
+
+        marker_41235fa1441cf8aa9fd3aa9fb101ecaf.bindPopup(popup_f8dd8a3a4cbd78812448966e3304b86a)
+        ;
+
+        
+    
+    
+            marker_41235fa1441cf8aa9fd3aa9fb101ecaf.bindTooltip(
+                `<div>
+                     優福加水站新竹西大站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_c09f5703caad2b462196f8b56891a681 = L.marker(
+                [24.8392516, 120.9395346],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_19805b73f6bcb8e4b6b5fbbb25a38aeb = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_fd37dcea80650f31aaf1ad1ef4be7005 = $(`<div id="html_fd37dcea80650f31aaf1ad1ef4be7005" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優福加水站新竹東大站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>冠銓淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市東大路3段614號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市東大路3段614號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_19805b73f6bcb8e4b6b5fbbb25a38aeb.setContent(html_fd37dcea80650f31aaf1ad1ef4be7005);
+            
+        
+
+        marker_c09f5703caad2b462196f8b56891a681.bindPopup(popup_19805b73f6bcb8e4b6b5fbbb25a38aeb)
+        ;
+
+        
+    
+    
+            marker_c09f5703caad2b462196f8b56891a681.bindTooltip(
+                `<div>
+                     優福加水站新竹東大站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_489fcb499ad822b0f8aa62d75cea5345 = L.marker(
+                [24.8230613, 120.973905],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_bde1fe79a987fe2eede0a505b2906156 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_3183606127429f449e8cb5a00841572b = $(`<div id="html_3183606127429f449e8cb5a00841572b" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優福加水站新竹金竹站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>冠銓淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市金竹路80號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市金竹路80號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_bde1fe79a987fe2eede0a505b2906156.setContent(html_3183606127429f449e8cb5a00841572b);
+            
+        
+
+        marker_489fcb499ad822b0f8aa62d75cea5345.bindPopup(popup_bde1fe79a987fe2eede0a505b2906156)
+        ;
+
+        
+    
+    
+            marker_489fcb499ad822b0f8aa62d75cea5345.bindTooltip(
+                `<div>
+                     優福加水站新竹金竹站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_effb7db850ead2c2845b64615cf4fe36 = L.marker(
+                [24.8010817, 120.9565638],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_16ad131980f5ecede4ed2344c9576b74 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_411dd7c78e1ab4d68dc99a716fe4c161 = $(`<div id="html_411dd7c78e1ab4d68dc99a716fe4c161" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>水源加水站-新竹中和店</h4>     <table>         <tr>             <td>公司名稱</td>             <td>冠銓淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市中和路55號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市中和路55號')">複製地址</div> </div> </div>`)[0];
+                popup_16ad131980f5ecede4ed2344c9576b74.setContent(html_411dd7c78e1ab4d68dc99a716fe4c161);
+            
+        
+
+        marker_effb7db850ead2c2845b64615cf4fe36.bindPopup(popup_16ad131980f5ecede4ed2344c9576b74)
+        ;
+
+        
+    
+    
+            marker_effb7db850ead2c2845b64615cf4fe36.bindTooltip(
+                `<div>
+                     水源加水站-新竹中和店
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_654af5887e49978df13ac8356aebf23f = L.marker(
+                [24.8232812, 120.9678016],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_e905066be9ba85d353df90ac54dfd12b = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_93efb3af05a21e0eea634e80f2acee2e = $(`<div id="html_93efb3af05a21e0eea634e80f2acee2e" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>富力康加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>金西屋股份有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市鐵道路二段288號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市鐵道路二段288號')">複製地址</div> </div> </div>`)[0];
+                popup_e905066be9ba85d353df90ac54dfd12b.setContent(html_93efb3af05a21e0eea634e80f2acee2e);
+            
+        
+
+        marker_654af5887e49978df13ac8356aebf23f.bindPopup(popup_e905066be9ba85d353df90ac54dfd12b)
+        ;
+
+        
+    
+    
+            marker_654af5887e49978df13ac8356aebf23f.bindTooltip(
+                `<div>
+                     富力康加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_b22cab3618af1a621ff693352c303540 = L.marker(
+                [24.7891085, 120.9665118],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_8d823f8c93fcfb488bbeec822c84b5ac = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_9c4bcff92794009797406aa8dce20faf = $(`<div id="html_9c4bcff92794009797406aa8dce20faf" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>陽光加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>陽光加水站</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市南大路573之3號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市南大路573之3號')">複製地址</div> </div> </div>`)[0];
+                popup_8d823f8c93fcfb488bbeec822c84b5ac.setContent(html_9c4bcff92794009797406aa8dce20faf);
+            
+        
+
+        marker_b22cab3618af1a621ff693352c303540.bindPopup(popup_8d823f8c93fcfb488bbeec822c84b5ac)
+        ;
+
+        
+    
+    
+            marker_b22cab3618af1a621ff693352c303540.bindTooltip(
+                `<div>
+                     陽光加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_66d65213e0a82dc622acd73f1bfc95ae = L.marker(
+                [24.7950801, 120.9619415],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_416fc9ec149e97d989932a7ce2433c94 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_6568cec8e6f7b1436f8fe129265f9353 = $(`<div id="html_6568cec8e6f7b1436f8fe129265f9353" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-振興站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市振興路74號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市振興路74號')">複製地址</div> </div> </div>`)[0];
+                popup_416fc9ec149e97d989932a7ce2433c94.setContent(html_6568cec8e6f7b1436f8fe129265f9353);
+            
+        
+
+        marker_66d65213e0a82dc622acd73f1bfc95ae.bindPopup(popup_416fc9ec149e97d989932a7ce2433c94)
+        ;
+
+        
+    
+    
+            marker_66d65213e0a82dc622acd73f1bfc95ae.bindTooltip(
+                `<div>
+                     天悅淨水-振興站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_3dc0a841f2146470ffb8e151df62e055 = L.marker(
+                [24.8035152, 120.9779266],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_9ea7fae11a00394e9faf60acb5feb9f3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_bcae0102c9335a08e5320c6955bada9e = $(`<div id="html_bcae0102c9335a08e5320c6955bada9e" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-花園站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市花園街23之1號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市花園街23之1號')">複製地址</div> </div> </div>`)[0];
+                popup_9ea7fae11a00394e9faf60acb5feb9f3.setContent(html_bcae0102c9335a08e5320c6955bada9e);
+            
+        
+
+        marker_3dc0a841f2146470ffb8e151df62e055.bindPopup(popup_9ea7fae11a00394e9faf60acb5feb9f3)
+        ;
+
+        
+    
+    
+            marker_3dc0a841f2146470ffb8e151df62e055.bindTooltip(
+                `<div>
+                     天悅淨水-花園站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_1a590976ff4130ca920f707566350cfa = L.marker(
+                [24.7969438, 120.974317],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_96251153273c0c8fffddb8875ecb28ca = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_f242c10eb8bcc33eed8a3ef9bb8778a7 = $(`<div id="html_f242c10eb8bcc33eed8a3ef9bb8778a7" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-東南站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市東南街146號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市東南街146號')">複製地址</div> </div> </div>`)[0];
+                popup_96251153273c0c8fffddb8875ecb28ca.setContent(html_f242c10eb8bcc33eed8a3ef9bb8778a7);
+            
+        
+
+        marker_1a590976ff4130ca920f707566350cfa.bindPopup(popup_96251153273c0c8fffddb8875ecb28ca)
+        ;
+
+        
+    
+    
+            marker_1a590976ff4130ca920f707566350cfa.bindTooltip(
+                `<div>
+                     天悅淨水-東南站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_a9f192868ddc9b523999d412283b1393 = L.marker(
+                [24.7770142, 120.9675214],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_210b9d12cc4c21291d0bad8dba298625 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_4d65659391ebf9600db09205c9bf54de = $(`<div id="html_4d65659391ebf9600db09205c9bf54de" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優仕淨水-明湖677</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市明湖路677號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市明湖路677號')">複製地址</div> </div> </div>`)[0];
+                popup_210b9d12cc4c21291d0bad8dba298625.setContent(html_4d65659391ebf9600db09205c9bf54de);
+            
+        
+
+        marker_a9f192868ddc9b523999d412283b1393.bindPopup(popup_210b9d12cc4c21291d0bad8dba298625)
+        ;
+
+        
+    
+    
+            marker_a9f192868ddc9b523999d412283b1393.bindTooltip(
+                `<div>
+                     優仕淨水-明湖677
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_041ed0866d74f36bbc29d2cadc73bc39 = L.marker(
+                [24.7985609, 120.9550404],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_80c6490e23e2ca98ea909536e7e53409 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_158a97a543b62be9c28b71ef8cc208c9 = $(`<div id="html_158a97a543b62be9c28b71ef8cc208c9" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優仕淨水-牛埔站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市牛埔路50之6號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市牛埔路50之6號')">複製地址</div> </div> </div>`)[0];
+                popup_80c6490e23e2ca98ea909536e7e53409.setContent(html_158a97a543b62be9c28b71ef8cc208c9);
+            
+        
+
+        marker_041ed0866d74f36bbc29d2cadc73bc39.bindPopup(popup_80c6490e23e2ca98ea909536e7e53409)
+        ;
+
+        
+    
+    
+            marker_041ed0866d74f36bbc29d2cadc73bc39.bindTooltip(
+                `<div>
+                     優仕淨水-牛埔站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_ca93b5b5cec5eb37bd5d0977ec80b16c = L.marker(
+                [24.8435633, 120.9312281],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_b439196985135c5c91d51bfc8ff6c869 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a29d98374c04cb2135952bf49bcbca55 = $(`<div id="html_a29d98374c04cb2135952bf49bcbca55" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優仕淨水-榮濱站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市榮濱路91號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市榮濱路91號')">複製地址</div> </div> </div>`)[0];
+                popup_b439196985135c5c91d51bfc8ff6c869.setContent(html_a29d98374c04cb2135952bf49bcbca55);
+            
+        
+
+        marker_ca93b5b5cec5eb37bd5d0977ec80b16c.bindPopup(popup_b439196985135c5c91d51bfc8ff6c869)
+        ;
+
+        
+    
+    
+            marker_ca93b5b5cec5eb37bd5d0977ec80b16c.bindTooltip(
+                `<div>
+                     優仕淨水-榮濱站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_564e4e21edc006671c207c816edaee78 = L.marker(
+                [24.8138287, 120.9674798],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_07d9eb453a38b5d222dd77893d2735bd = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_cf7dfd859c6ad1c43ca11c69dd397e38 = $(`<div id="html_cf7dfd859c6ad1c43ca11c69dd397e38" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-長福站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市長福街2號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市長福街2號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_07d9eb453a38b5d222dd77893d2735bd.setContent(html_cf7dfd859c6ad1c43ca11c69dd397e38);
+            
+        
+
+        marker_564e4e21edc006671c207c816edaee78.bindPopup(popup_07d9eb453a38b5d222dd77893d2735bd)
+        ;
+
+        
+    
+    
+            marker_564e4e21edc006671c207c816edaee78.bindTooltip(
+                `<div>
+                     天悅淨水-長福站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_2661754ba853910024ee952a051bcad2 = L.marker(
+                [24.7952141, 120.953987],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_5f7cb64b58b80940d032b1cb69a641c2 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_f7c563004974b9677b813b761f321632 = $(`<div id="html_f7c563004974b9677b813b761f321632" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-中山站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市中山路660號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市中山路660號')">複製地址</div> </div> </div>`)[0];
+                popup_5f7cb64b58b80940d032b1cb69a641c2.setContent(html_f7c563004974b9677b813b761f321632);
+            
+        
+
+        marker_2661754ba853910024ee952a051bcad2.bindPopup(popup_5f7cb64b58b80940d032b1cb69a641c2)
+        ;
+
+        
+    
+    
+            marker_2661754ba853910024ee952a051bcad2.bindTooltip(
+                `<div>
+                     天悅淨水-中山站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_daa4628cf6a58ae9da0f22b3851d070d = L.marker(
+                [24.7958392, 120.9448668],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_08fd212299b1edb765015b2dbcd7b150 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_5b0b1e51bbcab2ce18edeb5e1a5853d1 = $(`<div id="html_5b0b1e51bbcab2ce18edeb5e1a5853d1" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-東華站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市東華路70號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市東華路70號')">複製地址</div> </div> </div>`)[0];
+                popup_08fd212299b1edb765015b2dbcd7b150.setContent(html_5b0b1e51bbcab2ce18edeb5e1a5853d1);
+            
+        
+
+        marker_daa4628cf6a58ae9da0f22b3851d070d.bindPopup(popup_08fd212299b1edb765015b2dbcd7b150)
+        ;
+
+        
+    
+    
+            marker_daa4628cf6a58ae9da0f22b3851d070d.bindTooltip(
+                `<div>
+                     天悅淨水-東華站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_d4f93cab974559f0bd835745ce57ab78 = L.marker(
+                [24.8138287, 120.9674798],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_63be262ef51affb972c4292ce7ea7afc = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_8d7d066bfc2de0f8b65de59234160507 = $(`<div id="html_8d7d066bfc2de0f8b65de59234160507" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-延平站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市延平路1段293號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市延平路1段293號')">複製地址</div> </div> </div>`)[0];
+                popup_63be262ef51affb972c4292ce7ea7afc.setContent(html_8d7d066bfc2de0f8b65de59234160507);
+            
+        
+
+        marker_d4f93cab974559f0bd835745ce57ab78.bindPopup(popup_63be262ef51affb972c4292ce7ea7afc)
+        ;
+
+        
+    
+    
+            marker_d4f93cab974559f0bd835745ce57ab78.bindTooltip(
+                `<div>
+                     天悅淨水-延平站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_d4bcef70851a5ba574c3f0d0da93774b = L.marker(
+                [24.8025436, 120.9576778],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_85ca02a77ab790ceec269b8821557fcc = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_7e5e9189ae25fc2984f7e159242070d8 = $(`<div id="html_7e5e9189ae25fc2984f7e159242070d8" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-北新站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市北新街57號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市北新街57號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_85ca02a77ab790ceec269b8821557fcc.setContent(html_7e5e9189ae25fc2984f7e159242070d8);
+            
+        
+
+        marker_d4bcef70851a5ba574c3f0d0da93774b.bindPopup(popup_85ca02a77ab790ceec269b8821557fcc)
+        ;
+
+        
+    
+    
+            marker_d4bcef70851a5ba574c3f0d0da93774b.bindTooltip(
+                `<div>
+                     天悅淨水-北新站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_f0352ab3d2c5b9f635ec44269b8e85ea = L.marker(
+                [24.8156949, 120.9681081],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_3fbcade5646eef33c30d6b1ae46f247e = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_e6451bd22091d6a2bf3db5809fa0e6d6 = $(`<div id="html_e6451bd22091d6a2bf3db5809fa0e6d6" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-水田站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>天悅淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市水田街162號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市水田街162號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_3fbcade5646eef33c30d6b1ae46f247e.setContent(html_e6451bd22091d6a2bf3db5809fa0e6d6);
+            
+        
+
+        marker_f0352ab3d2c5b9f635ec44269b8e85ea.bindPopup(popup_3fbcade5646eef33c30d6b1ae46f247e)
+        ;
+
+        
+    
+    
+            marker_f0352ab3d2c5b9f635ec44269b8e85ea.bindTooltip(
+                `<div>
+                     天悅淨水-水田站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_8996c0bf6eae67b18de3283a7e5181da = L.marker(
+                [24.7443839, 120.9057792],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_5f689da14cd6828f8df7718a5c063fdc = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_85e4c6e4c9f3b65f266d06c2200e4087 = $(`<div id="html_85e4c6e4c9f3b65f266d06c2200e4087" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>天悅淨水-內湖站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市內湖路42號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市內湖路42號')">複製地址</div> </div> </div>`)[0];
+                popup_5f689da14cd6828f8df7718a5c063fdc.setContent(html_85e4c6e4c9f3b65f266d06c2200e4087);
+            
+        
+
+        marker_8996c0bf6eae67b18de3283a7e5181da.bindPopup(popup_5f689da14cd6828f8df7718a5c063fdc)
+        ;
+
+        
+    
+    
+            marker_8996c0bf6eae67b18de3283a7e5181da.bindTooltip(
+                `<div>
+                     天悅淨水-內湖站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_def93769bffebd0faaab79cd86033989 = L.marker(
+                [24.8006859, 120.9593263],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_9206deee9e95d0eedcc41a5dbc38dc26 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a26f32582e1903f0a92663549eadce1f = $(`<div id="html_a26f32582e1903f0a92663549eadce1f" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優仕水-中山一站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市中山路335號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市中山路335號')">複製地址</div> </div> </div>`)[0];
+                popup_9206deee9e95d0eedcc41a5dbc38dc26.setContent(html_a26f32582e1903f0a92663549eadce1f);
+            
+        
+
+        marker_def93769bffebd0faaab79cd86033989.bindPopup(popup_9206deee9e95d0eedcc41a5dbc38dc26)
+        ;
+
+        
+    
+    
+            marker_def93769bffebd0faaab79cd86033989.bindTooltip(
+                `<div>
+                     優仕水-中山一站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_9b55f4fdbbf2a5782984224d0807587a = L.marker(
+                [24.7910446, 120.9646574],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_c51393caa8f71df173b2161e0ca7d61d = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_bc9f1caa32914a8b1e3a763fedde275d = $(`<div id="html_bc9f1caa32914a8b1e3a763fedde275d" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優仕淨水-南大站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市南大路547號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市南大路547號')">複製地址</div> </div> </div>`)[0];
+                popup_c51393caa8f71df173b2161e0ca7d61d.setContent(html_bc9f1caa32914a8b1e3a763fedde275d);
+            
+        
+
+        marker_9b55f4fdbbf2a5782984224d0807587a.bindPopup(popup_c51393caa8f71df173b2161e0ca7d61d)
+        ;
+
+        
+    
+    
+            marker_9b55f4fdbbf2a5782984224d0807587a.bindTooltip(
+                `<div>
+                     優仕淨水-南大站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_a5e55c252d8fc98c10dc992311c348db = L.marker(
+                [24.8056461, 120.9224549],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_d22b033a9448faccb017c1bf428ffb1a = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_66a8e5dffd927227727c09d20c24bb17 = $(`<div id="html_66a8e5dffd927227727c09d20c24bb17" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優仕淨水-延平一站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市延平路2段696號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市延平路2段696號')">複製地址</div> </div> </div>`)[0];
+                popup_d22b033a9448faccb017c1bf428ffb1a.setContent(html_66a8e5dffd927227727c09d20c24bb17);
+            
+        
+
+        marker_a5e55c252d8fc98c10dc992311c348db.bindPopup(popup_d22b033a9448faccb017c1bf428ffb1a)
+        ;
+
+        
+    
+    
+            marker_a5e55c252d8fc98c10dc992311c348db.bindTooltip(
+                `<div>
+                     優仕淨水-延平一站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_b3efe85344174c0c5340c652caca4fd5 = L.marker(
+                [24.8067424, 120.9640481],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_defa04b58a4273bd9bb1d415be6acb9b = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_d825174bb0e325a5aab5288f3bdf63f9 = $(`<div id="html_d825174bb0e325a5aab5288f3bdf63f9" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優仕淨水-仁德站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優仕淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市新竹市仁德街50號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市新竹市仁德街50號')">複製地址</div> </div> </div>`)[0];
+                popup_defa04b58a4273bd9bb1d415be6acb9b.setContent(html_d825174bb0e325a5aab5288f3bdf63f9);
+            
+        
+
+        marker_b3efe85344174c0c5340c652caca4fd5.bindPopup(popup_defa04b58a4273bd9bb1d415be6acb9b)
+        ;
+
+        
+    
+    
+            marker_b3efe85344174c0c5340c652caca4fd5.bindTooltip(
+                `<div>
+                     優仕淨水-仁德站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_6782d11d91391deccabc6d856792d89c = L.marker(
+                [24.784757, 121.0133173],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_1e658374d6653d51b28d27cccf22ef89 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_90c3e5f15452aae8abcc85a2bfcfcd1d = $(`<div id="html_90c3e5f15452aae8abcc85a2bfcfcd1d" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>小海豚加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>金霖商行</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市光復路一段527號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市光復路一段527號')">複製地址</div> </div> </div>`)[0];
+                popup_1e658374d6653d51b28d27cccf22ef89.setContent(html_90c3e5f15452aae8abcc85a2bfcfcd1d);
+            
+        
+
+        marker_6782d11d91391deccabc6d856792d89c.bindPopup(popup_1e658374d6653d51b28d27cccf22ef89)
+        ;
+
+        
+    
+    
+            marker_6782d11d91391deccabc6d856792d89c.bindTooltip(
+                `<div>
+                     小海豚加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_bb4d646cb7e92823c819825b56b9b92c = L.marker(
+                [24.8053931, 120.9609737],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_23753288090aaaef972e724f020068e3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_8c7117ce3880cb6225e44934776c5ce7 = $(`<div id="html_8c7117ce3880cb6225e44934776c5ce7" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>城市優質加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優質企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市北大路374號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市北大路374號')">複製地址</div> </div> </div>`)[0];
+                popup_23753288090aaaef972e724f020068e3.setContent(html_8c7117ce3880cb6225e44934776c5ce7);
+            
+        
+
+        marker_bb4d646cb7e92823c819825b56b9b92c.bindPopup(popup_23753288090aaaef972e724f020068e3)
+        ;
+
+        
+    
+    
+            marker_bb4d646cb7e92823c819825b56b9b92c.bindTooltip(
+                `<div>
+                     城市優質加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_2a481aeb74933a8e44f6f46d069d862f = L.marker(
+                [24.7985252, 120.9834701],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_3cf879cd2a80254365540eb679db061e = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_3d85921c6bececef40db60f7703d8719 = $(`<div id="html_3d85921c6bececef40db60f7703d8719" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>藍泉-博愛館</h4>     <table>         <tr>             <td>公司名稱</td>             <td>富沛淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市東區綠水里博愛街80號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市東區綠水里博愛街80號')">複製地址</div> </div> </div>`)[0];
+                popup_3cf879cd2a80254365540eb679db061e.setContent(html_3d85921c6bececef40db60f7703d8719);
+            
+        
+
+        marker_2a481aeb74933a8e44f6f46d069d862f.bindPopup(popup_3cf879cd2a80254365540eb679db061e)
+        ;
+
+        
+    
+    
+            marker_2a481aeb74933a8e44f6f46d069d862f.bindTooltip(
+                `<div>
+                     藍泉-博愛館
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_3dbc5b4e7a20c0017a2eb0ce9afc4ed2 = L.marker(
+                [24.8166948, 120.9701907],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_98255ebbe33abb8aec39edd58b20abc1 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_f92c42eea1dd89e64397b569ec5b7d00 = $(`<div id="html_f92c42eea1dd89e64397b569ec5b7d00" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>藍泉-光華北站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>富沛淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市國華街77號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市國華街77號')">複製地址</div> </div> </div>`)[0];
+                popup_98255ebbe33abb8aec39edd58b20abc1.setContent(html_f92c42eea1dd89e64397b569ec5b7d00);
+            
+        
+
+        marker_3dbc5b4e7a20c0017a2eb0ce9afc4ed2.bindPopup(popup_98255ebbe33abb8aec39edd58b20abc1)
+        ;
+
+        
+    
+    
+            marker_3dbc5b4e7a20c0017a2eb0ce9afc4ed2.bindTooltip(
+                `<div>
+                     藍泉-光華北站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_9ecd72fc724b3dfcc01e6060b08052b2 = L.marker(
+                [24.7950851, 120.9619413],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_906e8cbe5d0293dbc4ee9c41e3d45e8c = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_8535e24cde838428fd7f7ec403ae9249 = $(`<div id="html_8535e24cde838428fd7f7ec403ae9249" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>藍泉-振興站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>富沛淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市振興路71號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市振興路71號')">複製地址</div> </div> </div>`)[0];
+                popup_906e8cbe5d0293dbc4ee9c41e3d45e8c.setContent(html_8535e24cde838428fd7f7ec403ae9249);
+            
+        
+
+        marker_9ecd72fc724b3dfcc01e6060b08052b2.bindPopup(popup_906e8cbe5d0293dbc4ee9c41e3d45e8c)
+        ;
+
+        
+    
+    
+            marker_9ecd72fc724b3dfcc01e6060b08052b2.bindTooltip(
+                `<div>
+                     藍泉-振興站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_9e4db0c47e0faf453a0442801db95af3 = L.marker(
+                [24.8125291, 120.9633098],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_68ccf2ee1b7c267df66f931ec374219e = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_1362e9286ec1b836f53311b9c427375a = $(`<div id="html_1362e9286ec1b836f53311b9c427375a" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>藍泉-城北站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>光美企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市城北街136號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市城北街136號')">複製地址</div> </div> </div>`)[0];
+                popup_68ccf2ee1b7c267df66f931ec374219e.setContent(html_1362e9286ec1b836f53311b9c427375a);
+            
+        
+
+        marker_9e4db0c47e0faf453a0442801db95af3.bindPopup(popup_68ccf2ee1b7c267df66f931ec374219e)
+        ;
+
+        
+    
+    
+            marker_9e4db0c47e0faf453a0442801db95af3.bindTooltip(
+                `<div>
+                     藍泉-城北站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_961a0f80cbcb95a109062f3db1c8222c = L.marker(
+                [24.7909507, 120.9235518],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_9e197aa752c8b16cf551b0627aa699a1 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a5fb81da937a4c17b4c0b49ef4c2a546 = $(`<div id="html_a5fb81da937a4c17b4c0b49ef4c2a546" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>藍泉-香北站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>富沛淨水有限公司</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市香北一路116號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市香北一路116號')">複製地址</div> </div> </div>`)[0];
+                popup_9e197aa752c8b16cf551b0627aa699a1.setContent(html_a5fb81da937a4c17b4c0b49ef4c2a546);
+            
+        
+
+        marker_961a0f80cbcb95a109062f3db1c8222c.bindPopup(popup_9e197aa752c8b16cf551b0627aa699a1)
+        ;
+
+        
+    
+    
+            marker_961a0f80cbcb95a109062f3db1c8222c.bindTooltip(
+                `<div>
+                     藍泉-香北站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_1e773a37bf401f9ff61070f5a18c9a69 = L.marker(
+                [24.8017576, 120.9979447],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_3a30d3ce64c36a90470bb321318265e5 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_abfecb35d9cc86b17fb6be5523869a73 = $(`<div id="html_abfecb35d9cc86b17fb6be5523869a73" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>藍泉-建美站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>新庄子水品企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市建美路42號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市建美路42號')">複製地址</div> </div> </div>`)[0];
+                popup_3a30d3ce64c36a90470bb321318265e5.setContent(html_abfecb35d9cc86b17fb6be5523869a73);
+            
+        
+
+        marker_1e773a37bf401f9ff61070f5a18c9a69.bindPopup(popup_3a30d3ce64c36a90470bb321318265e5)
+        ;
+
+        
+    
+    
+            marker_1e773a37bf401f9ff61070f5a18c9a69.bindTooltip(
+                `<div>
+                     藍泉-建美站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_7b3e396999d3377ce645d6e13a1ab6f8 = L.marker(
+                [24.815744, 120.9595778],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_0c38e8af63f4847d613d330a0b81357d = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_5165eb98a2e8c9b85e6012fb4725230b = $(`<div id="html_5165eb98a2e8c9b85e6012fb4725230b" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>藍泉-中正站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>兆泉企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市中正路443號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市中正路443號')">複製地址</div> </div> </div>`)[0];
+                popup_0c38e8af63f4847d613d330a0b81357d.setContent(html_5165eb98a2e8c9b85e6012fb4725230b);
+            
+        
+
+        marker_7b3e396999d3377ce645d6e13a1ab6f8.bindPopup(popup_0c38e8af63f4847d613d330a0b81357d)
+        ;
+
+        
+    
+    
+            marker_7b3e396999d3377ce645d6e13a1ab6f8.bindTooltip(
+                `<div>
+                     藍泉-中正站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_249c2fac854920f3a95a2a55e7e40791 = L.marker(
+                [24.7885499, 121.0176145],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_acdf7363edeb4b184c32fb296b2ad2f5 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_26cf95642883b2989d6ab1b78ede6bcf = $(`<div id="html_26cf95642883b2989d6ab1b78ede6bcf" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>幸福加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>幸福加水站</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市新莊街185號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市新莊街185號')">複製地址</div> </div> </div>`)[0];
+                popup_acdf7363edeb4b184c32fb296b2ad2f5.setContent(html_26cf95642883b2989d6ab1b78ede6bcf);
+            
+        
+
+        marker_249c2fac854920f3a95a2a55e7e40791.bindPopup(popup_acdf7363edeb4b184c32fb296b2ad2f5)
+        ;
+
+        
+    
+    
+            marker_249c2fac854920f3a95a2a55e7e40791.bindTooltip(
+                `<div>
+                     幸福加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_647b72d68acb1e93aaca6ccc9ad186bc = L.marker(
+                [24.7854732, 121.0161368],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_a34c77b879d2bf51a4cc68fd353499e3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_c59e99d7f3a0a0d65a50a21e01e269cc = $(`<div id="html_c59e99d7f3a0a0d65a50a21e01e269cc" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>新莊水漾商行</h4>     <table>         <tr>             <td>公司名稱</td>             <td>新莊水漾商行</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市新莊街60號1F</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市新莊街60號1F')">複製地址</div> </div> </div>`)[0];
+                popup_a34c77b879d2bf51a4cc68fd353499e3.setContent(html_c59e99d7f3a0a0d65a50a21e01e269cc);
+            
+        
+
+        marker_647b72d68acb1e93aaca6ccc9ad186bc.bindPopup(popup_a34c77b879d2bf51a4cc68fd353499e3)
+        ;
+
+        
+    
+    
+            marker_647b72d68acb1e93aaca6ccc9ad186bc.bindTooltip(
+                `<div>
+                     新莊水漾商行
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_9d2b665ace21ed60f55c2c5de679c648 = L.marker(
+                [24.8449999, 120.928451],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_59783a5cbedfad9765480a9d12b649a6 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_8ddf1ecb786326c6b1c096530ea63cac = $(`<div id="html_8ddf1ecb786326c6b1c096530ea63cac" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>淨好加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>淨好加水站</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市東大路4段255號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市東大路4段255號')">複製地址</div> </div> </div>`)[0];
+                popup_59783a5cbedfad9765480a9d12b649a6.setContent(html_8ddf1ecb786326c6b1c096530ea63cac);
+            
+        
+
+        marker_9d2b665ace21ed60f55c2c5de679c648.bindPopup(popup_59783a5cbedfad9765480a9d12b649a6)
+        ;
+
+        
+    
+    
+            marker_9d2b665ace21ed60f55c2c5de679c648.bindTooltip(
+                `<div>
+                     淨好加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_a8b460e93f927516240018089cfc1328 = L.marker(
+                [24.7830518, 121.0173271],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_345040a0c47afee4d69775f52586dcdd = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_d83836ea9d630f91f5800a124ab75277 = $(`<div id="html_d83836ea9d630f91f5800a124ab75277" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>光復加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>樂洗自助洗衣店</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市光復路一段367巷3號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市光復路一段367巷3號')">複製地址</div> </div> </div>`)[0];
+                popup_345040a0c47afee4d69775f52586dcdd.setContent(html_d83836ea9d630f91f5800a124ab75277);
+            
+        
+
+        marker_a8b460e93f927516240018089cfc1328.bindPopup(popup_345040a0c47afee4d69775f52586dcdd)
+        ;
+
+        
+    
+    
+            marker_a8b460e93f927516240018089cfc1328.bindTooltip(
+                `<div>
+                     光復加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_e936be73e2caa85b7129add498900de2 = L.marker(
+                [24.7867448, 121.0208803],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_cbe7fda5782625da76646d9206860307 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_ff934d298a5841ce55d6cffc856ab6be = $(`<div id="html_ff934d298a5841ce55d6cffc856ab6be" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>幸福關東加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>幸福水屋關東加水站</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市關東路125號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市關東路125號')">複製地址</div> </div> </div>`)[0];
+                popup_cbe7fda5782625da76646d9206860307.setContent(html_ff934d298a5841ce55d6cffc856ab6be);
+            
+        
+
+        marker_e936be73e2caa85b7129add498900de2.bindPopup(popup_cbe7fda5782625da76646d9206860307)
+        ;
+
+        
+    
+    
+            marker_e936be73e2caa85b7129add498900de2.bindTooltip(
+                `<div>
+                     幸福關東加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_60ac03640e4803d991e65802a0472c38 = L.marker(
+                [24.8256623, 120.9271376],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_452dcd7ea4ad75ba247c872d5327eaef = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_072ad9ab616a54789f9366c04f7f7f3a = $(`<div id="html_072ad9ab616a54789f9366c04f7f7f3a" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>台灣加水聯盟-新竹南寮店</h4>     <table>         <tr>             <td>公司名稱</td>             <td>彭伯發展行</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市西濱路1段369號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市西濱路1段369號')">複製地址</div> </div> </div>`)[0];
+                popup_452dcd7ea4ad75ba247c872d5327eaef.setContent(html_072ad9ab616a54789f9366c04f7f7f3a);
+            
+        
+
+        marker_60ac03640e4803d991e65802a0472c38.bindPopup(popup_452dcd7ea4ad75ba247c872d5327eaef)
+        ;
+
+        
+    
+    
+            marker_60ac03640e4803d991e65802a0472c38.bindTooltip(
+                `<div>
+                     台灣加水聯盟-新竹南寮店
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_dbeda35a99cfef07e2c81903e40c5609 = L.marker(
+                [24.811015, 120.9859737],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_95d54f25f5da89e7595000523688d613 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_9467e9b1793e3786c4499baf6e8d6bf6 = $(`<div id="html_9467e9b1793e3786c4499baf6e8d6bf6" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>鯨魚加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>喜多莉企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市中華路一段390號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市中華路一段390號')">複製地址</div> </div> </div>`)[0];
+                popup_95d54f25f5da89e7595000523688d613.setContent(html_9467e9b1793e3786c4499baf6e8d6bf6);
+            
+        
+
+        marker_dbeda35a99cfef07e2c81903e40c5609.bindPopup(popup_95d54f25f5da89e7595000523688d613)
+        ;
+
+        
+    
+    
+            marker_dbeda35a99cfef07e2c81903e40c5609.bindTooltip(
+                `<div>
+                     鯨魚加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_11f10ca708c41f4ca6bd16a9c6fc4da9 = L.marker(
+                [24.7964413, 120.9795322],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_56e6e098428e4ef39280cefb9c49dc85 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_aac1055f8569b0f10ef7bbf2c79ff50c = $(`<div id="html_aac1055f8569b0f10ef7bbf2c79ff50c" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>高永展加水站-東山站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>高永展行</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市東山街29號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市東山街29號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_56e6e098428e4ef39280cefb9c49dc85.setContent(html_aac1055f8569b0f10ef7bbf2c79ff50c);
+            
+        
+
+        marker_11f10ca708c41f4ca6bd16a9c6fc4da9.bindPopup(popup_56e6e098428e4ef39280cefb9c49dc85)
+        ;
+
+        
+    
+    
+            marker_11f10ca708c41f4ca6bd16a9c6fc4da9.bindTooltip(
+                `<div>
+                     高永展加水站-東山站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_0961ab9d5888fa78508e7e136dfad4cf = L.marker(
+                [24.8054318, 120.9377144],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_223ea307db29fbde09ee5f46fad280af = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_b2f3b4520bf020af3fb39e1669630544 = $(`<div id="html_b2f3b4520bf020af3fb39e1669630544" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>高永展加水站-延平站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>延平自助洗衣</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市延平路二段183號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市延平路二段183號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_223ea307db29fbde09ee5f46fad280af.setContent(html_b2f3b4520bf020af3fb39e1669630544);
+            
+        
+
+        marker_0961ab9d5888fa78508e7e136dfad4cf.bindPopup(popup_223ea307db29fbde09ee5f46fad280af)
+        ;
+
+        
+    
+    
+            marker_0961ab9d5888fa78508e7e136dfad4cf.bindTooltip(
+                `<div>
+                     高永展加水站-延平站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_ca7fb04c319072314a8dca11f7c2462d = L.marker(
+                [24.7972849, 120.9631128],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_5158bb83bbb984d0e89dea518730843b = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_3bd41654a03adc0237b8e6fbff31c8a6 = $(`<div id="html_3bd41654a03adc0237b8e6fbff31c8a6" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>生機炁能加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>秀瑾企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市中華路3段10號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市中華路3段10號')">複製地址</div> </div> </div>`)[0];
+                popup_5158bb83bbb984d0e89dea518730843b.setContent(html_3bd41654a03adc0237b8e6fbff31c8a6);
+            
+        
+
+        marker_ca7fb04c319072314a8dca11f7c2462d.bindPopup(popup_5158bb83bbb984d0e89dea518730843b)
+        ;
+
+        
+    
+    
+            marker_ca7fb04c319072314a8dca11f7c2462d.bindTooltip(
+                `<div>
+                     生機炁能加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_afda3440c1415c23dc1ac3130476504a = L.marker(
+                [24.8161603, 120.96212],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_4d9deb30ccba70331f36eab877cf5227 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_b0b795b2920a57cf875406efdce406a1 = $(`<div id="html_b0b795b2920a57cf875406efdce406a1" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>愛文-中正站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>佳沛企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市武陵路3號旁</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市武陵路3號旁')">複製地址</div> </div> </div>`)[0];
+                popup_4d9deb30ccba70331f36eab877cf5227.setContent(html_b0b795b2920a57cf875406efdce406a1);
+            
+        
+
+        marker_afda3440c1415c23dc1ac3130476504a.bindPopup(popup_4d9deb30ccba70331f36eab877cf5227)
+        ;
+
+        
+    
+    
+            marker_afda3440c1415c23dc1ac3130476504a.bindTooltip(
+                `<div>
+                     愛文-中正站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_6f4e3ce9a98281223484afa30ebf3214 = L.marker(
+                [24.7980768, 120.9615493],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_b113cf2146aefa4a30dfce0ed868982d = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_fa62458c302325a7ae70501a9d45cbb1 = $(`<div id="html_fa62458c302325a7ae70501a9d45cbb1" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>愛文-四維站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>佳沛企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市四維路21巷40號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市四維路21巷40號')">複製地址</div> </div> </div>`)[0];
+                popup_b113cf2146aefa4a30dfce0ed868982d.setContent(html_fa62458c302325a7ae70501a9d45cbb1);
+            
+        
+
+        marker_6f4e3ce9a98281223484afa30ebf3214.bindPopup(popup_b113cf2146aefa4a30dfce0ed868982d)
+        ;
+
+        
+    
+    
+            marker_6f4e3ce9a98281223484afa30ebf3214.bindTooltip(
+                `<div>
+                     愛文-四維站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_676586d0309726d8dadf921eba5d9b4f = L.marker(
+                [24.8011273, 120.967385],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_9dea6b483a8c9962b3c121ebcd7ca672 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_51106b62e15df6072d2a5872d71fc43d = $(`<div id="html_51106b62e15df6072d2a5872d71fc43d" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>愛文-林森站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>佳沛企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市南門街50號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市南門街50號')">複製地址</div> </div> </div>`)[0];
+                popup_9dea6b483a8c9962b3c121ebcd7ca672.setContent(html_51106b62e15df6072d2a5872d71fc43d);
+            
+        
+
+        marker_676586d0309726d8dadf921eba5d9b4f.bindPopup(popup_9dea6b483a8c9962b3c121ebcd7ca672)
+        ;
+
+        
+    
+    
+            marker_676586d0309726d8dadf921eba5d9b4f.bindTooltip(
+                `<div>
+                     愛文-林森站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_3dac514548d9a3f70fc8aadb3864a6a8 = L.marker(
+                [24.7677063, 120.9791759],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_d08c6f5273420e0a881cca2b8096eff1 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_7653c9e4e057a44bd28787183f31a6da = $(`<div id="html_7653c9e4e057a44bd28787183f31a6da" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>香WASH純淨加水屋</h4>     <table>         <tr>             <td>公司名稱</td>             <td>香子複合式生活館</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市明湖路1249號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市明湖路1249號')">複製地址</div> </div> </div>`)[0];
+                popup_d08c6f5273420e0a881cca2b8096eff1.setContent(html_7653c9e4e057a44bd28787183f31a6da);
+            
+        
+
+        marker_3dac514548d9a3f70fc8aadb3864a6a8.bindPopup(popup_d08c6f5273420e0a881cca2b8096eff1)
+        ;
+
+        
+    
+    
+            marker_3dac514548d9a3f70fc8aadb3864a6a8.bindTooltip(
+                `<div>
+                     香WASH純淨加水屋
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_e3f1ba80833a68f24b0d726fdd885a90 = L.marker(
+                [24.814644, 120.975771],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_6faa4027efd56c54ee85bf601c585216 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_7b77ca50dc67b2d326e852240724e774 = $(`<div id="html_7b77ca50dc67b2d326e852240724e774" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>優而美加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>優而美自助洗衣</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市經國路一段552號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市經國路一段552號')">複製地址</div> </div> </div>`)[0];
+                popup_6faa4027efd56c54ee85bf601c585216.setContent(html_7b77ca50dc67b2d326e852240724e774);
+            
+        
+
+        marker_e3f1ba80833a68f24b0d726fdd885a90.bindPopup(popup_6faa4027efd56c54ee85bf601c585216)
+        ;
+
+        
+    
+    
+            marker_e3f1ba80833a68f24b0d726fdd885a90.bindTooltip(
+                `<div>
+                     優而美加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_9cc3eab508e216b1048de5ac7232cd7e = L.marker(
+                [24.7939195, 120.9586561],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_a439a5260c802c798db250250508df8a = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_3fca3a4c9de6279fe038de3afdd83757 = $(`<div id="html_3fca3a4c9de6279fe038de3afdd83757" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>泡泡堂加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>承芯商行</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市成德路144號1F</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市成德路144號1F')">複製地址</div> </div> </div>`)[0];
+                popup_a439a5260c802c798db250250508df8a.setContent(html_3fca3a4c9de6279fe038de3afdd83757);
+            
+        
+
+        marker_9cc3eab508e216b1048de5ac7232cd7e.bindPopup(popup_a439a5260c802c798db250250508df8a)
+        ;
+
+        
+    
+    
+            marker_9cc3eab508e216b1048de5ac7232cd7e.bindTooltip(
+                `<div>
+                     泡泡堂加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_75dabba160c5ccbd2d46110a57f66c33 = L.marker(
+                [24.7842461, 120.9907192],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_103421cee2ba7c70847c64c9a97ec320 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_07353f5c241158589f35ad5ebf16839d = $(`<div id="html_07353f5c241158589f35ad5ebf16839d" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>泉源小棧加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>加七商行</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市寶山路452巷5弄1號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市寶山路452巷5弄1號')">複製地址</div> </div> </div>`)[0];
+                popup_103421cee2ba7c70847c64c9a97ec320.setContent(html_07353f5c241158589f35ad5ebf16839d);
+            
+        
+
+        marker_75dabba160c5ccbd2d46110a57f66c33.bindPopup(popup_103421cee2ba7c70847c64c9a97ec320)
+        ;
+
+        
+    
+    
+            marker_75dabba160c5ccbd2d46110a57f66c33.bindTooltip(
+                `<div>
+                     泉源小棧加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_69517b0a127b777dd9c5f23f414ff71c = L.marker(
+                [24.8077635, 120.9639595],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_312d26a47c06d027ae2a006a75a4f0e5 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a88d6603cec87453366d08a42141538e = $(`<div id="html_a88d6603cec87453366d08a42141538e" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>愛文-愛文站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>佳沛企業社</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市愛文街11巷23號</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市愛文街11巷23號')">複製地址</div> </div> </div>`)[0];
+                popup_312d26a47c06d027ae2a006a75a4f0e5.setContent(html_a88d6603cec87453366d08a42141538e);
+            
+        
+
+        marker_69517b0a127b777dd9c5f23f414ff71c.bindPopup(popup_312d26a47c06d027ae2a006a75a4f0e5)
+        ;
+
+        
+    
+    
+            marker_69517b0a127b777dd9c5f23f414ff71c.bindTooltip(
+                `<div>
+                     愛文-愛文站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_44ee7f2a685b8819ad424a8fbaf8ce26 = L.marker(
+                [24.8138287, 120.9674798],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_5feb25a77fec007175b5304756278a35 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_2285bfb7f1f6d7d027dcfaf3361b5f46 = $(`<div id="html_2285bfb7f1f6d7d027dcfaf3361b5f46" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>泉順加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>泉順洗自助洗衣坊</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市長和街20巷2號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市長和街20巷2號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_5feb25a77fec007175b5304756278a35.setContent(html_2285bfb7f1f6d7d027dcfaf3361b5f46);
+            
+        
+
+        marker_44ee7f2a685b8819ad424a8fbaf8ce26.bindPopup(popup_5feb25a77fec007175b5304756278a35)
+        ;
+
+        
+    
+    
+            marker_44ee7f2a685b8819ad424a8fbaf8ce26.bindTooltip(
+                `<div>
+                     泉順加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_549c9443905b09a5ee998dbb57dd88f7 = L.marker(
+                [24.7771033, 121.020108],
+                {
+}
+            ).addTo(map_9c95838c85f6415619a051cbdf3afc99);
+        
+    
+        var popup_b833a14688e4a3a2218506c248165baf = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_656044bc511c5de9903754f90d1587aa = $(`<div id="html_656044bc511c5de9903754f90d1587aa" style="width: 100.0%; height: 100.0%;"> <div class="station-info">     <h4>開創加水站</h4>     <table>         <tr>             <td>公司名稱</td>             <td>開創商行</td>         </tr>         <tr>             <td>地址</td>             <td>新竹市金山里金山七街75號1樓</td>         </tr>         <tr>             <td>水源</td>             <td>自來水</td>         </tr>     </table>     <div class="copy-button" onclick="copyToClipboard('新竹市金山里金山七街75號1樓')">複製地址</div> </div> </div>`)[0];
+                popup_b833a14688e4a3a2218506c248165baf.setContent(html_656044bc511c5de9903754f90d1587aa);
+            
+        
+
+        marker_549c9443905b09a5ee998dbb57dd88f7.bindPopup(popup_b833a14688e4a3a2218506c248165baf)
+        ;
+
+        
+    
+    
+            marker_549c9443905b09a5ee998dbb57dd88f7.bindTooltip(
+                `<div>
+                     開創加水站
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>

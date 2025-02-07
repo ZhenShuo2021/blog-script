@@ -1,0 +1,58 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+        files: ^python/hsinchu-water-station/.*$
+      - id: check-yaml
+        files: ^python/hsinchu-water-station/.*$
+      - id: check-added-large-files
+        files: ^python/hsinchu-water-station/.*$
+      - id: detect-private-key
+        files: ^python/hsinchu-water-station/.*$
+      - id: debug-statements
+        files: ^python/hsinchu-water-station/.*$
+      - id: check-case-conflict
+        files: ^python/hsinchu-water-station/.*$
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.2
+    hooks:
+      - id: bandit
+        args: ["-ll"]
+        files: ^python/hsinchu-water-station/.*$
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.19.1
+    hooks:
+      - id: pyupgrade
+        files: ^python/hsinchu-water-station/.*$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.1
+    hooks:
+      - id: ruff
+        args: [--config=pyproject.toml, --fix, --exit-non-zero-on-fix]
+        files: ^python/hsinchu-water-station/.*$
+      - id: ruff-format
+        name: ruff-format
+        args: [--config=pyproject.toml]
+        files: ^python/hsinchu-water-station/.*$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        args: ["--config-file=pyproject.toml"]
+        exclude: ^(safe_house/|tests/)
+        files: ^python/hsinchu-water-station/.*$
+        additional_dependencies:
+          - types-PyYAML
+
+  - repo: local
+    hooks:
+      - id: run-pip-compile
+        name: Run pip compile
+        entry: bash -c 'uv pip compile -q  --annotation-style line python/hsinchu-water-station/pyproject.toml -o python/hsinchu-water-station/requirements.txt'
+        language: system
+        files: ^python/hsinchu-water-station/.*$
